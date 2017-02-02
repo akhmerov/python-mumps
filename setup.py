@@ -179,31 +179,28 @@ def configure_special_extensions(exts, build_summary):
 
 
 def main():
-    exts = collections.OrderedDict([
-        ('mumpy._mumps',
-         dict(sources=['mumpy/_mumps.pyx'],
-              depends=['mumpy/cmumps.pxd']))])
+    mumps = {'mumpy._mumps':
+             dict(sources=['mumpy/_mumps.pyx'],
+                  depends=['mumpy/cmumps.pxd'])}
 
     # Add NumPy header path to include_dirs of all the extensions.
     import numpy
     numpy_include = numpy.get_include()
-    for ext in exts.values():
-        ext.setdefault('include_dirs', []).append(numpy_include)
-
+    mumps['mumpy._mumps'].setdefault('include_dirs', []).append(numpy_include)
     aliases = [('mumps', 'mumpy._mumps')]
 
     global build_summary
 
     build_summary = []
-    exts = configure_extensions(exts, aliases, build_summary)
-    exts = configure_special_extensions(exts, build_summary)
+    mumps = configure_extensions(mumps, aliases, build_summary)
+    mumps = configure_special_extensions(mumps, build_summary)
 
     cythonize = init_cython()
     if cythonize:
-        exts = cythonize([Extension(name, **kwargs)
-                         for name, kwargs in exts.items()],
-                         language_level=3,
-                         compiler_directives={'linetrace': True})
+        mumps = cythonize([Extension(name, **kwargs)
+                          for name, kwargs in mumps.items()],
+                          language_level=3,
+                          compiler_directives={'linetrace': True})
 
     classifiers = """\
         Development Status :: 5 - Production/Stable
@@ -229,7 +226,7 @@ def main():
           cmdclass={'build': build,
                     'sdist': sdist,
                     'build_ext': build_ext},
-          ext_modules=exts,
+          ext_modules=mumps,
           install_requires=['numpy', 'scipy'],
           classifiers=[c.strip() for c in classifiers.split('\n')])
 
