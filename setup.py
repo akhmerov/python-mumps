@@ -173,15 +173,8 @@ def configure_special_extensions(exts, build_summary):
     if 'libraries' in mumps:
         build_summary.append('User-configured MUMPS')
     else:
-        mumps_libs = search_mumps()
-        if mumps_libs:
-            mumps['libraries'] = mumps_libs
-            build_summary.append('Auto-configured MUMPS')
-        else:
-            mumps = None
-            del exts['mumpy._mumps']
-            build_summary.append('No MUMPS support')
-
+        mumps['libraries'] = search_mumps()
+        build_summary.append('Auto-configured MUMPS')
     return exts
 
 
