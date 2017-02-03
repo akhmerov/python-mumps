@@ -1,6 +1,33 @@
+# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer and
+# Copyright 2017 Bas Nijholt.
+#
+# This file is part of mumpy. It is subject to the license terms in the file
+# LICENSE found in the top-level directory of this distribution. A list of
+# mumpy authors can be found in the file AUTHORS.md at the top-level
+# directory of this distribution and at https://github.com/basnijholt/mumpy
+
 import numpy as np
 from mumpy import lll
-from kwant._common import ensure_rng
+
+
+def ensure_rng(rng=None):
+    """Turn rng into a random number generator instance.
+
+    If rng is None, return the RandomState instance used by np.random.
+    If rng is an integer, return a new RandomState instance seeded with rng.
+    If rng is already a RandomState instance, return it.
+    Otherwise raise ValueError.
+    """
+    if rng is None:
+        return np.random.mtrand._rand
+    if isinstance(rng, numbers.Integral):
+        return np.random.RandomState(rng)
+    if all(hasattr(rng, attr) for attr in ('random_sample', 'randn',
+                                           'randint', 'choice')):
+        return rng
+    raise ValueError("Expecting a seed or an object that offers the "
+                     "numpy.random.RandomState interface.")
+
 
 def test_lll():
     rng = ensure_rng(1)
