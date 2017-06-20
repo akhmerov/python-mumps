@@ -15,7 +15,7 @@ import time
 import numpy as np
 import scipy.sparse
 import warnings
-from . import _mumps
+from . import mumps
 from .fortran_helpers import prepare_for_fortran
 
 orderings = {'amd': 0, 'amf': 2, 'scotch': 3, 'pord': 4, 'metis': 5,
@@ -48,10 +48,10 @@ def possible_orderings():
         possible_orderings.cached = ['auto']
         for ordering in [0, 2, 3, 4, 5, 6]:
             data = np.asfortranarray([1, 1], dtype=np.complex128)
-            row = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
-            col = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
+            row = np.asfortranarray([1, 2], dtype=mumps.int_dtype)
+            col = np.asfortranarray([1, 2], dtype=mumps.int_dtype)
 
-            instance = _mumps.zmumps()
+            instance = mumps.zmumps()
             instance.set_assembled_matrix(2, row, col, data)
             instance.icntl[7] = ordering
             instance.job = 1
@@ -226,7 +226,7 @@ class MUMPSContext:
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
 
         if dtype != self.dtype:
-            self.mumps_instance = getattr(_mumps, dtype+"mumps")(self.verbose)
+            self.mumps_instance = getattr(mumps, dtype+"mumps")(self.verbose)
             self.dtype = dtype
 
         self.n = a.shape[0]
@@ -475,9 +475,9 @@ def schur_complement(a, indices, ordering='auto', ooc=False, pivot_tol=0.01,
         raise ValueError("Unknown ordering '"+ordering+"'!")
 
     dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
-    indices = _make_mumps_index_array(indices)
+    indices = _makemumps_index_array(indices)
 
-    mumps_instance = getattr(_mumps, dtype+"mumps")()
+    mumps_instance = getattr(mumps, dtype+"mumps")()
 
     mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
     mumps_instance.icntl[7] = orderings[ordering]
@@ -505,8 +505,8 @@ def schur_complement(a, indices, ordering='auto', ooc=False, pivot_tol=0.01,
 def _make_assembled_from_coo(a, overwrite_a):
     dtype, data = prepare_for_fortran(overwrite_a, a.data)
 
-    row = np.asfortranarray(a.row.astype(_mumps.int_dtype))
-    col = np.asfortranarray(a.col.astype(_mumps.int_dtype))
+    row = np.asfortranarray(a.row.astype(mumps.int_dtype))
+    col = np.asfortranarray(a.col.astype(mumps.int_dtype))
 
     # MUMPS uses Fortran indices.
     row += 1
@@ -519,8 +519,8 @@ def _make_sparse_rhs_from_csc(b, dtype):
     dtype, data = prepare_for_fortran(True, b.data,
                                       np.zeros(1, dtype=dtype))[:2]
 
-    col_ptr = np.asfortranarray(b.indptr.astype(_mumps.int_dtype))
-    row_ind = np.asfortranarray(b.indices.astype(_mumps.int_dtype))
+    col_ptr = np.asfortranarray(b.indptr.astype(mumps.int_dtype))
+    row_ind = np.asfortranarray(b.indices.astype(mumps.int_dtype))
 
     # MUMPS uses Fortran indices.
     col_ptr += 1
@@ -529,8 +529,8 @@ def _make_sparse_rhs_from_csc(b, dtype):
     return dtype, col_ptr, row_ind, data
 
 
-def _make_mumps_index_array(a):
-    a = np.asfortranarray(a.astype(_mumps.int_dtype))
+def _makemumps_index_array(a):
+    a = np.asfortranarray(a.astype(mumps.int_dtype))
     a += 1                      # Fortran indices
 
     return a

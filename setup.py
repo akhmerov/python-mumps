@@ -170,7 +170,7 @@ def search_mumps():
 
 def configure_special_extensions(exts, build_summary):
     # Special config for MUMPS.
-    mumps = exts['mumpy._mumps']
+    mumps = exts['mumpy.mumps']
     if 'libraries' in mumps:
         build_summary.append('User-configured MUMPS')
     else:
@@ -180,15 +180,15 @@ def configure_special_extensions(exts, build_summary):
 
 
 def main():
-    mumps = {'mumpy._mumps':
-             dict(sources=['mumpy/_mumps.pyx'],
-                  depends=['mumpy/cmumps.pxd'])}
+    mumps = {'mumpy.mumps':
+             dict(sources=['mumpy/mumps.pyx'],
+                  depends=['mumpy/_mumps.pxd'])}
 
     # Add NumPy header path to include_dirs of all the extensions.
     import numpy
     numpy_include = numpy.get_include()
-    mumps['mumpy._mumps'].setdefault('include_dirs', []).append(numpy_include)
-    aliases = [('mumps', 'mumpy._mumps')]
+    mumps['mumpy.mumps'].setdefault('include_dirs', []).append(numpy_include)
+    aliases = [('mumps', 'mumpy.mumps')]
 
     global build_summary
 
