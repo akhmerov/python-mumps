@@ -13,6 +13,16 @@ from .fortran_helpers import assert_fortran_matvec, assert_fortran_mat
 
 int_dtype = np.int32
 
+ctypedef np.float32_t SMUMPS_COMPLEX_NPT
+ctypedef np.float64_t DMUMPS_COMPLEX_NPT
+ctypedef np.complex64_t CMUMPS_COMPLEX_NPT
+ctypedef np.complex128_t ZMUMPS_COMPLEX_NPT
+
+SMUMPS_COMPLEX_NP = np.float32
+DMUMPS_COMPLEX_NP = np.float64
+CMUMPS_COMPLEX_NP = np.complex64
+ZMUMPS_COMPLEX_NP = np.complex128
+
 # Proxy classes for Python access to the control and info parameters of MUMPS
 
 cdef class mumps_int_array:
@@ -34,28 +44,10 @@ cdef make_mumps_int_array(mumps.MUMPS_INT *array):
     wrapper.array = array
     return wrapper
 
+{% for p in 'SDCZ' %}
 
-cdef class smumps_real_array:
-    cdef mumps.SMUMPS_REAL *array
-
-    def __init__(self):
-        self.array = NULL
-
-    def __getitem__(self, key):
-        return self.array[key - 1]
-
-    def __setitem__(self, key, value):
-        self.array[key - 1] = value
-
-
-cdef make_smumps_real_array(mumps.SMUMPS_REAL *array):
-    wrapper = smumps_real_array()
-    wrapper.array = array
-    return wrapper
-
-
-cdef class dmumps_real_array:
-    cdef mumps.DMUMPS_REAL *array
+cdef class {{p|lower}}mumps_real_array:
+    cdef mumps.{{p}}MUMPS_REAL *array
 
     def __init__(self):
         self.array = NULL
@@ -67,60 +59,25 @@ cdef class dmumps_real_array:
         self.array[key - 1] = value
 
 
-cdef make_dmumps_real_array(mumps.DMUMPS_REAL *array):
-    wrapper = dmumps_real_array()
+cdef make_{{p|lower}}mumps_real_array(mumps.{{p}}MUMPS_REAL *array):
+    wrapper = {{p|lower}}mumps_real_array()
     wrapper.array = array
     return wrapper
 
-
-cdef class mumps_real_array:
-    cdef mumps.CMUMPS_REAL *array
-
-    def __init__(self):
-        self.array = NULL
-
-    def __getitem__(self, key):
-        return self.array[key - 1]
-
-    def __setitem__(self, key, value):
-        self.array[key - 1] = value
-
-
-cdef make_mumps_real_array(mumps.CMUMPS_REAL *array):
-    wrapper = mumps_real_array()
-    wrapper.array = array
-    return wrapper
-
-
-cdef class zmumps_real_array:
-    cdef mumps.ZMUMPS_REAL *array
-
-    def __init__(self):
-        self.array = NULL
-
-    def __getitem__(self, key):
-        return self.array[key - 1]
-
-    def __setitem__(self, key, value):
-        self.array[key - 1] = value
-
-
-cdef make_zmumps_real_array(mumps.ZMUMPS_REAL *array):
-    wrapper = zmumps_real_array()
-    wrapper.array = array
-    return wrapper
-
+{% endfor %}
 #############################################################
 
-cdef class zmumps:
-    cdef mumps.ZMUMPS_STRUC_C params
+{% for p in 'SDCZ' %}
+
+cdef class {{p|lower}}mumps:
+    cdef mumps.{{p}}MUMPS_STRUC_C params
 
     cdef public mumps_int_array icntl
-    cdef public zmumps_real_array cntl
+    cdef public {{p|lower}}mumps_real_array cntl
     cdef public mumps_int_array info
     cdef public mumps_int_array infog
-    cdef public zmumps_real_array rinfo
-    cdef public zmumps_real_array rinfog
+    cdef public {{p|lower}}mumps_real_array rinfo
+    cdef public {{p|lower}}mumps_real_array rinfog
 
     def __init__(self, verbose=False, sym=0):
         self.params.job = -1
@@ -128,14 +85,14 @@ cdef class zmumps:
         self.params.par = 1
         self.params.comm_fortran = -987654
 
-        mumps.zmumps_c(&self.params)
+        mumps.{{p|lower}}mumps_c(&self.params)
 
         self.icntl = make_mumps_int_array(self.params.icntl)
-        self.cntl = make_zmumps_real_array(self.params.cntl)
+        self.cntl = make_{{p|lower}}mumps_real_array(self.params.cntl)
         self.info = make_mumps_int_array(self.params.info)
         self.infog = make_mumps_int_array(self.params.infog)
-        self.rinfo = make_zmumps_real_array(self.params.rinfo)
-        self.rinfog = make_zmumps_real_array(self.params.rinfog)
+        self.rinfo = make_{{p|lower}}mumps_real_array(self.params.rinfo)
+        self.rinfog = make_{{p|lower}}mumps_real_array(self.params.rinfog)
 
         # no diagnostic output (MUMPS is very verbose normally)
         if not verbose:
@@ -144,10 +101,10 @@ cdef class zmumps:
 
     def __dealloc__(self):
         self.params.job = -2
-        mumps.zmumps_c(&self.params)
+        mumps.{{p|lower}}mumps_c(&self.params)
 
     def call(self):
-        mumps.zmumps_c(&self.params)
+        mumps.{{p|lower}}mumps_c(&self.params)
 
     def _set_job(self, value):
         self.params.job = value
@@ -170,7 +127,7 @@ cdef class zmumps:
         self.params.nz = a.shape[0]
         self.params.irn = <mumps.MUMPS_INT *>i.data
         self.params.jcn = <mumps.MUMPS_INT *>j.data
-        self.params.a = <mumps.ZMUMPS_COMPLEX *>a.data
+        self.params.a = <mumps.{{p}}MUMPS_COMPLEX *>a.data
 
     def set_dense_rhs(self, np.ndarray rhs):
 
@@ -183,7 +140,7 @@ cdef class zmumps:
         else:
             self.params.nrhs = rhs.shape[1]
         self.params.lrhs = rhs.shape[0]
-        self.params.rhs = <mumps.ZMUMPS_COMPLEX *>rhs.data
+        self.params.rhs = <mumps.{{p}}MUMPS_COMPLEX *>rhs.data
 
     def set_sparse_rhs(self,
                        np.ndarray[mumps.MUMPS_INT, ndim=1] col_ptr,
@@ -196,7 +153,7 @@ cdef class zmumps:
 
         self.params.nz_rhs = data.shape[0]
         self.params.nrhs = col_ptr.shape[0] - 1
-        self.params.rhs_sparse = <mumps.ZMUMPS_COMPLEX *>data.data
+        self.params.rhs_sparse = <mumps.{{p}}MUMPS_COMPLEX *>data.data
         self.params.irhs_sparse = <mumps.MUMPS_INT *>row_ind.data
         self.params.irhs_ptr = <mumps.MUMPS_INT *>col_ptr.data
 
@@ -211,5 +168,7 @@ cdef class zmumps:
                              "with Schur complement size!")
 
         self.params.size_schur = schur.shape[0]
-        self.params.schur = <mumps.ZMUMPS_COMPLEX *>schur.data
+        self.params.schur = <mumps.{{p}}MUMPS_COMPLEX *>schur.data
         self.params.listvar_schur = <mumps.MUMPS_INT *>schur_vars.data
+
+{% endfor %}

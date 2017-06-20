@@ -27,36 +27,39 @@ cdef extern from "mumps_c_types.h":
     ctypedef double ZMUMPS_REAL
     ctypedef mumps_double_complex ZMUMPS_COMPLEX
 
+{% for p in 'SDCZ' %}
 
-cdef extern from "zmumps_c.h":
-    ctypedef struct ZMUMPS_STRUC_C:
+cdef extern from "{{p|lower}}mumps_c.h":
+    ctypedef struct {{p}}MUMPS_STRUC_C:
         MUMPS_INT sym, par, job
         MUMPS_INT comm_fortran
         MUMPS_INT icntl[40]
-        ZMUMPS_REAL cntl[15]
+        {{p}}MUMPS_REAL cntl[15]
 
         MUMPS_INT n
 
         MUMPS_INT nz
         MUMPS_INT *irn
         MUMPS_INT *jcn
-        ZMUMPS_COMPLEX *a
+        {{p}}MUMPS_COMPLEX *a
 
         MUMPS_INT nrhs, lrhs
-        ZMUMPS_COMPLEX *rhs
+        {{p}}MUMPS_COMPLEX *rhs
 
         MUMPS_INT info[40]
         MUMPS_INT infog[40]
-        ZMUMPS_REAL rinfo[40]
-        ZMUMPS_REAL rinfog[40]
+        {{p}}MUMPS_REAL rinfo[40]
+        {{p}}MUMPS_REAL rinfog[40]
 
         MUMPS_INT nz_rhs
-        ZMUMPS_COMPLEX *rhs_sparse
+        {{p}}MUMPS_COMPLEX *rhs_sparse
         MUMPS_INT *irhs_sparse
         MUMPS_INT *irhs_ptr
 
         MUMPS_INT size_schur
         MUMPS_INT *listvar_schur
-        ZMUMPS_COMPLEX *schur
+        {{p}}MUMPS_COMPLEX *schur
 
-    cdef void zmumps_c(ZMUMPS_STRUC_C *)
+    cdef void {{p|lower}}mumps_c({{p}}MUMPS_STRUC_C *)
+
+{% endfor %}

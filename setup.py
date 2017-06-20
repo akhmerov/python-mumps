@@ -12,6 +12,7 @@ import sys
 if sys.version_info[:2] < (3, 4):
     sys.exit('Sorry, Python < 3.4 is not supported')
 
+import os
 import re
 import subprocess
 import configparser
@@ -20,6 +21,8 @@ from setuptools import setup, find_packages, Extension
 from distutils.command.build import build
 from setuptools.command.sdist import sdist
 from setuptools.command.build_ext import build_ext
+
+import jinja2 as j2
 
 
 def configure_extensions(exts, aliases=(), build_summary=None):
@@ -195,6 +198,13 @@ def main():
     build_summary = []
     mumps = configure_extensions(mumps, aliases, build_summary)
     mumps = configure_special_extensions(mumps, build_summary)
+
+    os.chdir('mumpy')
+    for fn in (f for f in os.listdir() if f.endswith('.j2')):
+        base_name = fn[:-3]
+        with open(fn, 'r') as infile, open(base_name, 'w') as outfile:
+            outfile.write(j2.Template(infile.read()).render())
+    os.chdir('..')
 
     cythonize = init_cython()
     if cythonize:

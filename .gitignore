@@ -1,3 +1,7 @@
+# Project-specific
+mumpy/_mumps.pxd
+mumpy/mumps.pyx
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
