@@ -204,11 +204,10 @@ def main():
                           compiler_directives={'linetrace': True})
 
     classifiers = """\
-        Development Status :: 5 - Production/Stable
+        Development Status :: 3 - Alpha
         Intended Audience :: Science/Research
         Intended Audience :: Developers
         Programming Language :: Python :: 3 :: Only
-        Topic :: Software Development
         Topic :: Scientific/Engineering
         Operating System :: POSIX
         Operating System :: Unix
