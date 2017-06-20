@@ -9,7 +9,7 @@
 # directory of this distribution and at https://github.com/basnijholt/mumpy
 
 import sys
-if sys.version_info < (3, 4):
+if sys.version_info[:2] < (3, 4):
     sys.exit('Sorry, Python < 3.4 is not supported')
 
 import re
