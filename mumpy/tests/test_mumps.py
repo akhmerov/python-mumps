@@ -6,7 +6,7 @@
 # mumpy authors can be found in the file AUTHORS.md at the top-level
 # directory of this distribution and at https://github.com/basnijholt/mumpy
 
-from mumpy.mumps import MUMPSContext, schur_complement
+from mumpy import MUMPSContext, schur_complement
 from kwant.lattice import honeycomb
 from kwant.builder import Builder, HoppingKind
 import pytest
