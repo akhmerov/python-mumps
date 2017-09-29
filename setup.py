@@ -239,7 +239,7 @@ def main():
                     'sdist': sdist,
                     'build_ext': build_ext},
           ext_modules=mumps,
-          install_requires=['numpy', 'scipy'],
+          install_requires=['numpy'],
           classifiers=[c.strip() for c in classifiers.split('\n')])
 
 if __name__ == '__main__':
