@@ -5,6 +5,15 @@
 # LICENSE found in the top-level directory of this distribution. A list of
 # mumpy authors can be found in the file AUTHORS.md at the top-level
 # directory of this distribution and at https://github.com/basnijholt/mumpy.
+"""Low-level interface to Mumps.
+
+Thin wrappers around the Mumps C API. At this stage there
+are still separate interfaces for real vs. complex and single
+vs. double precision.
+
+End users should not use this interface directly unless they
+need finer control that that provided by the 'mumpy' interface.
+"""
 
 cimport numpy as np
 import numpy as np
