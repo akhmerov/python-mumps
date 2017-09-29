@@ -36,7 +36,7 @@ def sparse_diag(matrix, k, sigma, **kwargs):
     """Call sla.eigsh with mumps support.
 
     Please see scipy.sparse.linalg.eigsh for documentation.
-    
+
     Notes
     -----
     mumpy only works with complex numbers at the moment.
