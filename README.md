@@ -21,7 +21,7 @@ and use the following `build.conf` (if on Linux, not needed for OSX)
 [mumps]
 include_dirs = $CONDA_PREFIX/include
 library_dirs = $CONDA_PREFIX/lib
-libraries = zmumps mumps_common pord metis esmumps scotch scotcherr mpiseq gfortran
+libraries = smumps dmumps cmumps zmumps mumps_common pord metis esmumps scotch scotcherr mpiseq gfortran
 extra_link_args = -Wl,-rpath=$CONDA_PREFIX/lib
 ```
 
