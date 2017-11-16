@@ -1,5 +1,5 @@
-# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer and
-# Copyright 2017 Bas Nijholt.
+# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer
+# Copyright 2017 Joseph Weston and Bas Nijholt.
 #
 # This file is part of mumpy. It is subject to the license terms in the file
 # LICENSE found in the top-level directory of this distribution. A list of

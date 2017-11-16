@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer and
-# Copyright 2017 Bas Nijholt.
+# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer
+# Copyright 2017 Joseph Weston and Bas Nijholt.
 #
 # This file is part of mumpy. It is subject to the license terms in the file
 # LICENSE found in the top-level directory of this distribution. A list of
@@ -228,11 +228,11 @@ def main():
 
     setup(name='mumpy',
           version='0.1.0',
-          author='Bas Nijholt',
-          author_email='basnijholt@gmail.com',
+          author='mumpy authors',
+          author_email='authors@kwant-project.org',
           description=("Python bindings for MUMPS "),
           platforms=["Unix", "Linux", "Mac OS-X", "Windows"],
-          url="https://github.com/basnijholt/mumpy",
+          url="https://gitlab.kwant-project.org/kwant/mumpy",
           license="BSD",
           packages=find_packages('.'),
           cmdclass={'build': build,
