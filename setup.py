@@ -192,7 +192,6 @@ def main():
     # Add NumPy header path to include_dirs of all the extensions.
     import numpy
     numpy_include = numpy.get_include()
-    mumps['mumpy.mumps'].setdefault('include_dirs', []).append(numpy_include)
     aliases = [('mumps', 'mumpy.mumps')]
 
     global build_summary
@@ -200,6 +199,7 @@ def main():
     build_summary = []
     mumps = configure_extensions(mumps, aliases, build_summary)
     mumps = configure_special_extensions(mumps, build_summary)
+    mumps['mumpy.mumps'].setdefault('include_dirs', []).append(numpy_include)
 
     os.chdir('mumpy')
     for fn in (f for f in os.listdir() if f.endswith('.j2')):
