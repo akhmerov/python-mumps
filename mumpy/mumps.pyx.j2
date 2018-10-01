@@ -131,7 +131,7 @@ cdef class {{p|lower}}mumps:
                              mumps.MUMPS_INT N,
                              np.ndarray[mumps.MUMPS_INT, ndim=1] i,
                              np.ndarray[mumps.MUMPS_INT, ndim=1] j,
-                             np.ndarray[np.complex128_t, ndim=1] a):
+                             np.ndarray[{{p}}MUMPS_COMPLEX_NPT, ndim=1] a):
         self.params.n = N
         self.params.nz = a.shape[0]
         self.params.irn = <mumps.MUMPS_INT *>i.data
@@ -141,8 +141,9 @@ cdef class {{p|lower}}mumps:
     def set_dense_rhs(self, np.ndarray rhs):
 
         assert_fortran_matvec(rhs)
-        if rhs.dtype != np.complex128:
-            raise ValueError("numpy array must be of dtype complex128!")
+
+        if rhs.dtype != {{p}}MUMPS_COMPLEX_NP:
+            raise ValueError("numpy array must be of dtype {}".format({{p}}MUMPS_COMPLEX_NP))
 
         if rhs.ndim == 1:
             self.params.nrhs = 1
@@ -154,7 +155,7 @@ cdef class {{p|lower}}mumps:
     def set_sparse_rhs(self,
                        np.ndarray[mumps.MUMPS_INT, ndim=1] col_ptr,
                        np.ndarray[mumps.MUMPS_INT, ndim=1] row_ind,
-                       np.ndarray[np.complex128_t, ndim=1] data):
+                       np.ndarray[{{p}}MUMPS_COMPLEX_NPT, ndim=1] data):
 
         if row_ind.shape[0] != data.shape[0]:
             raise ValueError("Number of entries in row index and value "
@@ -167,7 +168,7 @@ cdef class {{p|lower}}mumps:
         self.params.irhs_ptr = <mumps.MUMPS_INT *>col_ptr.data
 
     def set_schur(self,
-                  np.ndarray[np.complex128_t, ndim=2, mode='c'] schur,
+                  np.ndarray[{{p}}MUMPS_COMPLEX_NPT, ndim=2, mode='c'] schur,
                   np.ndarray[mumps.MUMPS_INT, ndim=1] schur_vars):
 
         if schur.shape[0] != schur.shape[1]:
