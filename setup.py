@@ -19,7 +19,6 @@ import configparser
 import collections
 from setuptools import setup, find_packages, Extension
 from distutils.command.build import build
-from setuptools.command.sdist import sdist
 from setuptools.command.build_ext import build_ext
 
 import jinja2 as j2
@@ -184,6 +183,17 @@ def configure_special_extensions(exts, build_summary):
     return exts
 
 
+# Loads version.py module without importing the whole package.
+def get_version_and_cmdclass(package_path):
+    import os
+    from importlib.util import module_from_spec, spec_from_file_location
+    spec = spec_from_file_location('version',
+                                   os.path.join(package_path, '_version.py'))
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.__version__, module.cmdclass
+
+
 def main():
     mumps = {'mumpy.mumps':
              dict(sources=['mumpy/mumps.pyx'],
@@ -215,6 +225,8 @@ def main():
                           language_level=3,
                           compiler_directives={'linetrace': True})
 
+    version, cmdclass = get_version_and_cmdclass('mumpy')
+
     classifiers = """\
         Development Status :: 3 - Alpha
         Intended Audience :: Science/Research
@@ -227,7 +239,7 @@ def main():
         Operating System :: Microsoft :: Windows"""
 
     setup(name='mumpy',
-          version='0.1.0',
+          version=version,
           author='mumpy authors',
           author_email='authors@kwant-project.org',
           description=("Python bindings for MUMPS "),
@@ -235,9 +247,11 @@ def main():
           url="https://gitlab.kwant-project.org/kwant/mumpy",
           license="BSD",
           packages=find_packages('.'),
-          cmdclass={'build': build,
-                    'sdist': sdist,
-                    'build_ext': build_ext},
+          cmdclass={
+            'build': build,
+            'build_ext': build_ext,
+            **cmdclass,
+          },
           ext_modules=mumps,
           install_requires=['numpy'],
           classifiers=[c.strip() for c in classifiers.split('\n')])
