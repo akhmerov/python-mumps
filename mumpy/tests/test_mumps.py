@@ -4,7 +4,8 @@
 # This file is part of mumpy. It is subject to the license terms in the file
 # LICENSE found in the top-level directory of this distribution. A list of
 # mumpy authors can be found in the file AUTHORS.md at the top-level
-# directory of this distribution and at https://github.com/basnijholt/mumpy
+# directory of this distribution and at
+# https://gitlab.kwant-project.org/kwant/mumpy.
 
 from mumpy import MUMPSContext, schur_complement
 from kwant.lattice import honeycomb

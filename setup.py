@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-# Copyright 2011-2017 Kwant authors.
 #
-# This file is part of Kwant.  It is subject to the license terms in the file
-# LICENSE.rst found in the top-level directory of this distribution and at
-# http://kwant-project.org/license.  A list of Kwant authors can be found in
-# the file AUTHORS.rst at the top-level directory of this distribution and at
-# http://kwant-project.org/authors.
+# Copyright 2018 Mumpy Authors.
+#
+# This file is part of mumpy. It is subject to the license terms in the file
+# LICENSE found in the top-level directory of this distribution. A list of
+# mumpy authors can be found in the file AUTHORS.md at the top-level
+# directory of this distribution and at
+# https://gitlab.kwant-project.org/kwant/mumpy.
 
 from __future__ import print_function
 
@@ -190,7 +190,7 @@ def init_cython():
 
         if cythonize is None:
             msg = ("Install Cython >= {0} or use"
-                    " a source distribution (tarball) of Kwant.")
+                    " a source distribution (tarball) of Mumpy.")
             ver = '.'.join(str(e) for e in required_cython_version)
             cython_help = msg.format(ver)
     else:
@@ -257,7 +257,7 @@ class build_ext(build_ext_orig):
 
     __error_msg = textwrap.dedent("""\
         {header}
-        The compilation of Kwant has failed.  Please examine the error message
+        The compilation of Mumpy has failed.  Please examine the error message
         above and consult the installation instructions in README.rst.
         You might have to customize {{file}}.
 
@@ -422,7 +422,7 @@ def maybe_cythonize(exts):
         # Cython *cannot* be run, warn otherwise.
         error = cythonize is None
         if cythonize is False:
-            dontworry = ('(Do not worry about this if you are building Kwant '
+            dontworry = ('(Do not worry about this if you are building Mumpy '
                          'from unmodified sources,\n'
                          'e.g. with "pip install".)\n\n')
             msg = dontworry + msg
