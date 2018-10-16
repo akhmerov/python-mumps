@@ -11,7 +11,7 @@ import pytest
 import numpy as np
 import scipy.sparse as sp
 
-from mumpy import MUMPSContext, schur_complement, MUMPSError
+from mumpy import MUMPSContext, schur_complement
 from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
@@ -59,7 +59,6 @@ def test_lu_with_dense(dtype, mat_size):
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [5, 10], ids=str)
 def test_schur_complement_with_dense(dtype, mat_size):
-    precision = precisions.get(dtype)
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
     s = schur_complement(sp.coo_matrix(a), list(range(3)))
