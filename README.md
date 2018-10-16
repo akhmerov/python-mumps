@@ -1,49 +1,40 @@
 # mumpy
-Python bindings for the MUMPS package MUMPS: a parallel sparse direct solver
+
+Python bindings for the [MUMPS](http://mumps.enseeiht.fr/): a parallel sparse direct solver.
+
 
 # Installation
-## On Linux
-Either install `mumps` with:
-```
-sudo apt-get instal libmumps-scotch-dev
+
+`mumpy` works with Python 3.5 and higher on Linux, Windows and Mac.
+
+The recommended way to install `mumpy` is using [`conda`](https://conda.io/):
+```bash
+conda install -c conda-forge mumpy
 ```
 
-## Both on Linux and OSX
-or use the `conda` package on `conda-forge`
-```
-conda config --add channels conda-forge
-conda install cython mumps numpy scipy libgfortran
-pip install git+git@github.com:basnijholt/mumpy.git
-```
-and use the following `build.conf` (if on Linux, not needed for OSX)
+`mumpy` can also be installed from PyPI, however this is a more involved procedure
+that requires separately installing the MUMPS library and a C compiler.
 
-```
-[mumps]
-include_dirs = $CONDA_PREFIX/include
-library_dirs = $CONDA_PREFIX/lib
-libraries = smumps dmumps cmumps zmumps mumps_common pord metis esmumps scotch scotcherr mpiseq gfortran
-extra_link_args = -Wl,-rpath=$CONDA_PREFIX/lib
-```
 
-# Usage
+# Usage example
+
+The following example shows how mumpy can be used to implement sparse diagonalization
+with Scipy.
+
 ```python
 import scipy.sparse.linalg as sla
 from scipy.sparse import identity
-import mumpy.mumps as mumps
+import mumpy
 
 
 def sparse_diag(matrix, k, sigma, **kwargs):
     """Call sla.eigsh with mumps support.
 
-    Please see scipy.sparse.linalg.eigsh for documentation.
-
-    Notes
-    -----
-    mumpy only works with complex numbers at the moment.
+    See scipy.sparse.linalg.eigsh for documentation.
     """
     class LuInv(sla.LinearOperator):
         def __init__(self, A):
-            inst = mumps.MUMPSContext()
+            inst = mumpy.MUMPSContext()
             inst.analyze(A, ordering='pord')
             inst.factor(A)
             self.solve = inst.solve
