@@ -13,16 +13,11 @@ import numpy as np
 import scipy.sparse as sp
 from ._test_utils import _Random, assert_array_almost_equal
 
-"""
-Here we define the datatypes and the expected decimal precision from the algorithms.
-For the double precision datatypes, the IEEE specification only guarantees up to approximately
-16 decimals digits, but with so many operations involving these numbers,
-practically it is good for up to approximately 12, hence, we check for only 10 decimal places.
-As for the single precision datatypes, since the specification allows for up to only
-approximately 6 decimal digits, we only can ensure precision up to 1 decimal place.
-"""
+# Decimal places of precision per datatype. These limits have been determined
+# heuristically by inspecting the upper error bound reported by MUMPS for
+# the random matrices used here.
 precisions = {
-    np.float32: 1,
+    np.float32: 1,  # yes, really only 1 decimal place of precision!
     np.float64: 10,
     np.complex64: 1,
     np.complex128: 10,
