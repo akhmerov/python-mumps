@@ -7,11 +7,12 @@
 # directory of this distribution and at
 # https://gitlab.kwant-project.org/kwant/mumpy.
 
-from mumpy import MUMPSContext, schur_complement, MUMPSError
 import pytest
 import numpy as np
 import scipy.sparse as sp
-from ._test_utils import _Random, assert_array_almost_equal
+
+from mumpy import MUMPSContext, schur_complement, MUMPSError
+from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
 # heuristically by inspecting the upper error bound reported by MUMPS for
@@ -27,11 +28,13 @@ dtypes = list(precisions.keys())
 
 matrix_sizes = np.arange(100,600,100)
 
+def assert_array_almost_equal(dtype, a, b):
+    np.testing.assert_almost_equal(a, b, decimal=precisions[dtype])
+
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", matrix_sizes, ids=str)
 def test_lu_with_dense(dtype, mat_size):
-    precision = precisions.get(dtype)
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
     bmat = rand.randmat(mat_size, mat_size, dtype)
@@ -43,26 +46,15 @@ def test_lu_with_dense(dtype, mat_size):
     xvec = ctx.solve(bvec)
     xmat = ctx.solve(bmat)
 
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.imag(np.dot(a, xmat) - bmat))), 
-                                         0., precision)
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.real(np.dot(a, xmat) - bmat))), 
-                                         0., precision)
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.imag(np.dot(a, xvec) - bvec))),
-                                         0., precision)
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.real(np.dot(a, xvec) - bvec))),
-                                         0., precision)
+    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
+    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
     # now "sparse" right hand side
     xvec = ctx.solve(sp.csc_matrix(bvec.reshape(mat_size,1)))
     xmat = ctx.solve(sp.csc_matrix(bmat))
 
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.imag(np.dot(a, xmat) - bmat))), 0., precision)
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.real(np.dot(a, xmat) - bmat))), 0., precision)
-    
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.imag(np.dot(a, xvec) - 
-                                            bvec.reshape(mat_size,1)))), 0., precision)
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.real(np.dot(a, xvec) - 
-                                            bvec.reshape(mat_size,1)))), 0., precision)
+    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
+    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -72,12 +64,7 @@ def test_schur_complement_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
     s = schur_complement(sp.coo_matrix(a), list(range(3)))
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.imag(np.linalg.inv(s) 
-                                                - np.linalg.inv(a)[:3, :3]))),
-                                            0., precision)
-    np.testing.assert_array_almost_equal(np.max(np.abs(np.real(np.linalg.inv(s) 
-                                                - np.linalg.inv(a)[:3, :3]))),
-                                            0., precision)
+    assert_array_almost_equal(dtype, np.linalg.inv(s), np.linalg.inv(a)[:3, :3])
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)

@@ -73,14 +73,3 @@ class _Random:
                 vec[i] = self._randi()
 
         return vec
-
-# Improved version of assert_arrays_almost_equal that uses the dtype to set the
-# precision (The default precision of assert_arrays_almost_equal is sometimes
-# too small for single-precision comparisions.)
-def assert_array_almost_equal(dtype, a, b):
-    if dtype == np.float32 or dtype == np.complex64:
-        prec = 5
-    else:
-        prec = 10
-
-    np.testing.assert_array_almost_equal(a, b, decimal=prec)
