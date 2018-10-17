@@ -7,77 +7,89 @@
 # directory of this distribution and at
 # https://gitlab.kwant-project.org/kwant/mumpy.
 
-from mumpy import MUMPSContext, schur_complement
-from kwant.lattice import honeycomb
-from kwant.builder import Builder, HoppingKind
 import pytest
 import numpy as np
 import scipy.sparse as sp
-from ._test_utils import _Random, assert_array_almost_equal
+
+from mumpy import MUMPSContext, schur_complement, MUMPSError
+from ._test_utils import _Random
+
+# Decimal places of precision per datatype. These limits have been determined
+# heuristically by inspecting the upper error bound reported by MUMPS for
+# the random matrices used here.
+precisions = {
+    np.float32: 1,  # yes, really only 1 decimal place of precision!
+    np.float64: 10,
+    np.complex64: 1,
+    np.complex128: 10,
+}
+
+dtypes = list(precisions.keys())
 
 
-def test_lu_with_dense():
-    def _test_lu_with_dense(dtype):
-        rand = _Random()
-        a = rand.randmat(5, 5, dtype)
-        bmat = rand.randmat(5, 5, dtype)
-        bvec = rand.randvec(5, dtype)
-
-        ctx = MUMPSContext()
-        ctx.factor(sp.coo_matrix(a))
-
-        xvec = ctx.solve(bvec)
-        xmat = ctx.solve(bmat)
-
-        assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
-        assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
-
-        # now "sparse" right hand side
-
-        xvec = ctx.solve(sp.csc_matrix(bvec.reshape(5,1)))
-        xmat = ctx.solve(sp.csc_matrix(bmat))
-
-        assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
-        assert_array_almost_equal(dtype, np.dot(a, xvec),
-                                  bvec.reshape(5,1))
-
-    _test_lu_with_dense(np.complex128)
+def assert_array_almost_equal(dtype, a, b):
+    np.testing.assert_almost_equal(a, b, decimal=precisions[dtype])
 
 
-def test_schur_complement_with_dense():
-    def _test_schur_complement_with_dense(dtype):
-        rand = _Random()
-        a = rand.randmat(10, 10, dtype)
-        s = schur_complement(sp.coo_matrix(a), list(range(3)))
-        assert_array_almost_equal(dtype, np.linalg.inv(s),
-                                  np.linalg.inv(a)[:3, :3])
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
+def test_lu_with_dense(dtype, mat_size):
+    rand = _Random()
+    a = rand.randmat(mat_size, mat_size, dtype)
+    bmat = rand.randmat(mat_size, mat_size, dtype)
+    bvec = rand.randvec(mat_size, dtype)
 
-    _test_schur_complement_with_dense(np.complex128)
+    ctx = MUMPSContext()
+    ctx.factor(sp.coo_matrix(a))
 
+    xvec = ctx.solve(bvec)
+    xmat = ctx.solve(bmat)
 
-def test_error_minus_9(r=10):
-    """Test if MUMPSError -9 is properly caught by increasing memory"""
+    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
+    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
-    graphene = honeycomb()
-    a, b = graphene.sublattices
+    # now "sparse" right hand side
+    xvec = ctx.solve(sp.csc_matrix(bvec.reshape(mat_size,1)))
+    xmat = ctx.solve(sp.csc_matrix(bmat))
 
-    def circle(pos):
-        x, y = pos
-        return x**2 + y**2 < r**2
-
-    syst = Builder()
-    syst[graphene.shape(circle, (0,0))] = -0.0001
-    for kind in [((0, 0), b, a), ((0, 1), b, a), ((-1, 1), b, a)]:
-        syst[HoppingKind(*kind)] = - 1
-
-    ham = syst.finalized().hamiltonian_submatrix(sparse=True)
-
-    # No need to check result, it's enough if no exception is raised
-    MUMPSContext().factor(ham)
+    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
+    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
 
-def test_factor_warning():
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.parametrize("mat_size", [5, 10], ids=str)
+def test_schur_complement_with_dense(dtype, mat_size):
+    precision = precisions.get(dtype)
+    rand = _Random()
+    a = rand.randmat(mat_size, mat_size, dtype)
+    s = schur_complement(sp.coo_matrix(a), list(range(3)))
+    assert_array_almost_equal(dtype, np.linalg.inv(s), np.linalg.inv(a)[:3, :3])
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_factor_warning(dtype):
     """Test that a warning is raised if factor is asked without analysis."""
-    a = sp.identity(10, dtype=complex)
+    a = sp.identity(10, dtype=dtype)
     with pytest.warns(RuntimeWarning):
         MUMPSContext().factor(a, reuse_analysis=True)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_error_minus_9(dtype):
+    """Test if MUMPSError -9 is properly caught by increasing memory"""
+    ctx = MUMPSContext()
+
+    a = sp.eye(5000, dtype=dtype)
+
+    # Create the context so we can modify it for factorization
+    ctx.analyze(a)
+
+    # We ensure that this first call creates a -9 error by allocating only 1 MB for factorization
+    ctx.mumps_instance.icntl[23] = 1 # Memory upper bound set to 1MB
+    ctx.mumps_instance.icntl[14] = 1 # Initial memory relaxation to 1%
+    ctx.mumps_instance.job = 2
+    ctx.mumps_instance.call()
+    assert(ctx.mumps_instance.infog[1] == -9)  # ensure that we really don't have enough memory
+
+    # This call should not raise any errors as it would successfully allocate memory
+    MUMPSContext().factor(a)
