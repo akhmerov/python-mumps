@@ -13,4 +13,3 @@ For a full list of contributors run
 ```
 git log --pretty=format:"%an" | sort | uniq
 ```
-
