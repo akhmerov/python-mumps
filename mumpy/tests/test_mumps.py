@@ -26,14 +26,13 @@ precisions = {
 
 dtypes = list(precisions.keys())
 
-matrix_sizes = np.arange(100,600,100)
 
 def assert_array_almost_equal(dtype, a, b):
     np.testing.assert_almost_equal(a, b, decimal=precisions[dtype])
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.parametrize("mat_size", matrix_sizes, ids=str)
+@pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
 def test_lu_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -58,7 +57,7 @@ def test_lu_with_dense(dtype, mat_size):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.parametrize("mat_size", matrix_sizes, ids=str)
+@pytest.mark.parametrize("mat_size", [5, 10], ids=str)
 def test_schur_complement_with_dense(dtype, mat_size):
     precision = precisions.get(dtype)
     rand = _Random()
