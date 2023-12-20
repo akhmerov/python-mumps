@@ -31,7 +31,7 @@ def prepare_for_fortran(overwrite, *args):
     determine the proper data type.
 
     `prepare_for_lapack` returns a character indicating the proper
-    data type in LAPACK style ('s', 'd', 'c', 'z') and a list of
+    data type in LAPACK style 'SDCZ' and a list of
     properly converted arrays.
     """
 

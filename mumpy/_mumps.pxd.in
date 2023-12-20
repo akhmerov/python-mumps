@@ -29,9 +29,9 @@ cdef extern from "mumps_c_types.h":
     ctypedef double ZMUMPS_REAL
     ctypedef mumps_double_complex ZMUMPS_COMPLEX
 
-{% for p in 'SDCZ' %}
+{{for p in 'SDCZ'}}
 
-cdef extern from "{{p|lower}}mumps_c.h":
+cdef extern from "{{p.lower()}}mumps_c.h":
     ctypedef struct {{p}}MUMPS_STRUC_C:
         MUMPS_INT sym, par, job
         MUMPS_INT comm_fortran
@@ -62,6 +62,6 @@ cdef extern from "{{p|lower}}mumps_c.h":
         MUMPS_INT *listvar_schur
         {{p}}MUMPS_COMPLEX *schur
 
-    cdef void {{p|lower}}mumps_c({{p}}MUMPS_STRUC_C *)
+    cdef void {{p.lower()}}mumps_c({{p}}MUMPS_STRUC_C *)
 
-{% endfor %}
+{{endfor}}

@@ -1,0 +1,44 @@
+[build-system]
+requires = [
+    "cython >= 3.0.2",
+    "meson >= 1.0.0",
+    "meson-python >= 0.14.0",
+]
+build-backend = "mesonpy"
+
+[project]
+name = "mumpy"
+version = "0.1.0"  # replace with your project's version
+description = "Bindings and Python interface for the MUMPS sparse solver"
+readme = "README.md"
+authors = [
+    {name = "mumpy authors", email = "authors@kwant-project.org"}
+]
+license = {file = "LICENSE"}
+homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
+repository = "https://gitlab.kwant-project.org/kwant/mumpy"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows"
+]
+dependencies = [
+    "numpy >= 1.21.2",
+    "scipy >= 1.7.1",
+]
+
+[project.urls]
+homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
+
+[tool.spin]
+package = "mumpy"
+commands = [
+  "spin.cmds.meson.build",
+  "spin.cmds.meson.test"
+]

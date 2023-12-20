@@ -17,8 +17,8 @@ import numpy as np
 import scipy.sparse
 import scipy.linalg as la
 import warnings
-from . import mumps
-from .fortran_helpers import prepare_for_fortran
+import mumps
+from fortran_helpers import prepare_for_fortran
 
 orderings = {'amd': 0, 'amf': 2, 'scotch': 3, 'pord': 4, 'metis': 5,
              'qamd': 6, 'auto': 7}
@@ -601,7 +601,7 @@ def _make_assembled_from_coo(a, overwrite_a):
 
     Returns
     -------
-    dtype : char ['s', 'd', 'c', 'z']
+    dtype : char 'SDCZ'
         a character indicating what fortran data type the
         data array contains.
         s - single precision real
