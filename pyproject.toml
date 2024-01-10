@@ -2,7 +2,9 @@
 requires = [
     "cython >= 3.0.2",
     "meson >= 1.0.0",
-    "meson-python >= 0.14.0",
+    "meson-python >= 0.15.0",
+    "numpy==1.24.4; python_version=='3.11' and platform_python_implementation != 'PyPy'",
+
 ]
 build-backend = "mesonpy"
 
