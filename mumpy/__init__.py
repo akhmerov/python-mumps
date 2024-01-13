@@ -6,7 +6,6 @@ from .mumpy import (
     nullspace,
     possible_orderings,
 )
-from ._version import __version__
 
 __all__ = [
     "MUMPSContext",
@@ -30,3 +29,20 @@ def test(verbose=True):
 
 
 test.__test__ = False
+
+
+# Infer the version. Prioritize trying to get the version from git, but if that
+# fails, fall back to the version in the package metadata.
+try:
+    # Setuptools_scm is not a dependency, and this is mainly for convenience of
+    # developers.
+    from setuptools_scm import get_version
+
+    __version__ = get_version()
+except (ImportError, LookupError):
+    from importlib.metadata import version, PackageNotFoundError
+
+    try:
+        __version__ = version("mumpy")
+    except PackageNotFoundError:
+        __version__ = "0.0.0+unknown"
