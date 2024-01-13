@@ -10,7 +10,7 @@
 """Interface to the MUMPS sparse solver library"""
 
 __all__ = [
-    "MUMPSContext",
+    "Context",
     "schur_complement",
     "nullspace",
     "AnalysisStatistics",
@@ -196,8 +196,8 @@ class FactorizationStatistics:
         return " ".join(parts)
 
 
-class MUMPSContext:
-    """MUMPSContext contains the internal data structures needed by the
+class Context:
+    """Context contains the internal data structures needed by the
     MUMPS library and contains a user-friendly interface.
 
     WARNING: Only complex numbers supported.
@@ -209,7 +209,7 @@ class MUMPSContext:
 
     >>> import scipy.sparse as sp
     >>> a = sp.coo_matrix([[1.,0],[0,2.]], dtype=complex)
-    >>> ctx = mumpy.mumps.MUMPSContext()
+    >>> ctx = mumpy.mumps.Context()
     >>> ctx.factor(a)
     >>> ctx.solve([1., 1.])
     array([ 1.0+0.j,  0.5+0.j])
@@ -227,7 +227,7 @@ class MUMPSContext:
     """
 
     def __init__(self, verbose=False):
-        """Init the MUMPSContext class
+        """Init the Context class
 
         Parameters
         ----------
@@ -240,6 +240,16 @@ class MUMPSContext:
         self.dtype = None
         self.verbose = verbose
         self.factored = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Force MUMPS to deallocate memory
+        self.job = -2
+        self.mumps_instance.call()
+        self.mumps_instance = None
+        return False
 
     def analyze(self, a, ordering="auto", overwrite_a=False):
         """Perform analysis step of MUMPS.
@@ -364,9 +374,7 @@ class MUMPSContext:
             else:
                 dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
                 if self.dtype != dtype:
-                    raise ValueError(
-                        "MUMPSContext dtype and matrix dtype " "incompatible!"
-                    )
+                    raise ValueError("Context dtype and matrix dtype are incompatible!")
 
                 self.n = a.shape[0]
                 self.row = row

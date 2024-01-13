@@ -34,7 +34,7 @@ def sparse_diag(matrix, k, sigma, **kwargs):
     """
     class LuInv(sla.LinearOperator):
         def __init__(self, A):
-            inst = mumpy.MUMPSContext()
+            inst = mumpy.Context()
             inst.analyze(A, ordering='pord')
             inst.factor(A)
             self.solve = inst.solve

@@ -1,5 +1,5 @@
 from .mumpy import (
-    MUMPSContext,
+    Context,
     MUMPSError,
     AnalysisStatistics,
     FactorizationStatistics,
@@ -10,7 +10,7 @@ from .mumpy import (
 from ._version import __version__
 
 __all__ = [
-    "MUMPSContext",
+    "Context",
     "MUMPSError",
     "AnalysisStatistics",
     "FactorizationStatistics",

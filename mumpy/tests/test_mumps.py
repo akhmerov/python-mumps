@@ -12,7 +12,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.linalg as la
 
-from mumpy import MUMPSContext, MUMPSError, schur_complement, nullspace
+from mumpy import Context, MUMPSError, schur_complement, nullspace
 from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
@@ -44,7 +44,7 @@ def test_lu_with_dense(dtype, mat_size):
     bmat = rand.randmat(mat_size, mat_size, dtype)
     bvec = rand.randvec(mat_size, dtype)
 
-    ctx = MUMPSContext()
+    ctx = Context()
     ctx.factor(sp.coo_matrix(a))
 
     xvec = ctx.solve(bvec)
@@ -75,13 +75,13 @@ def test_factor_warning(dtype):
     """Test that a warning is raised if factor is asked without analysis."""
     a = sp.identity(10, dtype=dtype)
     with pytest.warns(RuntimeWarning):
-        MUMPSContext().factor(a, reuse_analysis=True)
+        Context().factor(a, reuse_analysis=True)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 def test_error_minus_9(dtype):
     """Test if MUMPSError -19 is properly caught by increasing memory"""
-    ctx = MUMPSContext()
+    ctx = Context()
 
     a = sp.eye(5000, dtype=dtype)
 
@@ -99,7 +99,7 @@ def test_error_minus_9(dtype):
 
     # This call should not raise any errors as
     # it would successfully allocate memory
-    MUMPSContext().factor(a)
+    Context().factor(a)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
