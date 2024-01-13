@@ -1,6 +1,6 @@
 # mumpy
 
-Python bindings for the [MUMPS](http://mumps.enseeiht.fr/): a parallel sparse direct solver.
+Python bindings for the [MUMPS](http://mumps-solver.org/): a parallel sparse direct solver.
 
 
 # Installation
