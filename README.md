@@ -5,7 +5,7 @@ Python bindings for the [MUMPS](http://mumps.enseeiht.fr/): a parallel sparse di
 
 # Installation
 
-`mumpy` works with Python 3.5 and higher on Linux, Windows and Mac.
+`mumpy` works with Python 3.10 and higher on Linux, Windows and Mac.
 
 The recommended way to install `mumpy` is using [`conda`](https://conda.io/):
 ```bash
