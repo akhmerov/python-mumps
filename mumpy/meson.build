@@ -14,7 +14,7 @@ foreach template : templates
     pyx_files += pyx_file
 endforeach
 
-py_files = files('__init__.py', 'mumpy.py', 'fortran_helpers.py')
+py_files = files('__init__.py', 'mumpy.py', 'fortran_helpers.py', '_version.py')
 py.install_sources(py_files, subdir: 'mumpy')
 
 foreach py_file : py_files

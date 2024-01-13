@@ -8,7 +8,7 @@ project(
         'buildtype=release',
         'c_std=c99',
     ],
-    version: '0.1.0',
+    version: run_command('mumpy/_version.py', check: true).stdout().strip(),
 )
 
 py = import('python').find_installation(pure: false)
