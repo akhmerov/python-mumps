@@ -16,4 +16,17 @@ __all__ = [
     "nullspace",
     "possible_orderings",
     "__version__",
+    "test",
 ]
+
+
+def test(verbose=True):
+    from pytest import main
+    import os.path
+
+    return main(
+        [os.path.dirname(os.path.abspath(__file__)), "-s"] + (["-v"] if verbose else [])
+    )
+
+
+test.__test__ = False
