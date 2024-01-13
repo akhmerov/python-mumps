@@ -18,8 +18,8 @@ need finer control that that provided by the 'mumpy' interface.
 
 cimport numpy as np
 import numpy as np
-from . cimport _mumps as mumps
-from fortran_helpers import assert_fortran_matvec, assert_fortran_mat
+from mumpy cimport _mumps as mumps
+from mumpy.fortran_helpers import assert_fortran_matvec, assert_fortran_mat
 
 int_dtype = np.int32
 

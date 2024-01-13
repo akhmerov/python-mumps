@@ -1,5 +1,6 @@
 from .mumpy import (
     MUMPSContext,
+    MUMPSError,
     AnalysisStatistics,
     FactorizationStatistics,
     schur_complement,
@@ -9,6 +10,7 @@ from .mumpy import (
 
 __all__ = [
     "MUMPSContext",
+    "MUMPSError",
     "AnalysisStatistics",
     "FactorizationStatistics",
     "schur_complement",

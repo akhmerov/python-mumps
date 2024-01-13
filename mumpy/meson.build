@@ -15,7 +15,7 @@ foreach template : templates
 endforeach
 
 py_files = files('__init__.py', 'mumpy.py', 'fortran_helpers.py')
-py.install_sources(py_files)
+py.install_sources(py_files, subdir: 'mumpy')
 
 foreach py_file : py_files
     fs.copyfile(py_file)
@@ -28,7 +28,8 @@ py.extension_module(
     include_directories: [inc_np, mumps_include],
     install_rpath: mumps_lib_path,
     build_rpath: mumps_lib_path,
-    install: true, 
+    install: true,
+    subdir: 'mumpy'
 )
 
 subdir('tests')

@@ -23,8 +23,9 @@ import numpy as np
 import scipy.sparse
 import scipy.linalg as la
 import warnings
-import mumps
-from fortran_helpers import prepare_for_fortran
+
+from mumpy import mumps
+from mumpy.fortran_helpers import prepare_for_fortran
 
 orderings = {
     "amd": 0,

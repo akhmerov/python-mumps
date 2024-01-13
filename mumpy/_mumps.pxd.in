@@ -35,7 +35,7 @@ cdef extern from "{{p.lower()}}mumps_c.h":
     ctypedef struct {{p}}MUMPS_STRUC_C:
         MUMPS_INT sym, par, job
         MUMPS_INT comm_fortran
-        MUMPS_INT icntl[40]
+        MUMPS_INT icntl[60]
         {{p}}MUMPS_REAL cntl[15]
 
         MUMPS_INT n

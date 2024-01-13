@@ -11,7 +11,7 @@ project(
     version: '0.1.0',
 )
 
-py = import('python').find_installation()
+py = import('python').find_installation(pure: false)
 cc = meson.get_compiler('c')
 tempita = files('tempita.py')
 fs = import('fs')

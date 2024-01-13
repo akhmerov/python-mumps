@@ -43,7 +43,8 @@ homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
 package = "mumpy"
 commands = [
   "spin.cmds.meson.build",
-  "spin.cmds.meson.test"
+  "spin.cmds.meson.test",
+  "spin.cmds.pip.install"
 ]
 
 [tool.ruff.pydocstyle]
