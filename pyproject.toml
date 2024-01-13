@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "cython >= 3.0.2",
-    "meson >= 1.0.0",
+    "meson >= 1.1.0",
     "meson-python >= 0.15.0",
     "numpy==1.24.4; python_version=='3.11' and platform_python_implementation != 'PyPy'",
 
@@ -10,7 +10,6 @@ build-backend = "mesonpy"
 
 [project]
 name = "mumpy"
-version = "0.1.0"  # replace with your project's version
 description = "Bindings and Python interface for the MUMPS sparse solver"
 readme = "README.md"
 authors = [
@@ -34,6 +33,7 @@ dependencies = [
     "numpy >= 1.21.2",
     "scipy >= 1.7.1",
 ]
+dynamic = ["version"]
 
 [project.urls]
 homepage = "https://gitlab.kwant-project.org/kwant/mumpy"

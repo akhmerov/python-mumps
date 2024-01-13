@@ -1,11 +1,14 @@
 project(
-    'mumpy', 'cython', 'c',
+    'mumpy',
+    'cython', 'c',
     license: 'BSD-2-Clause',
-    meson_version: '>= 1.0.0',
+    license_files: 'LICENSE',
+    meson_version: '>= 1.1.0',
     default_options: [
         'buildtype=release',
         'c_std=c99',
-    ]
+    ],
+    version: '0.1.0',
 )
 
 py = import('python').find_installation()
