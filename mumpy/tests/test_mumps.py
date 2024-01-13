@@ -1,4 +1,4 @@
-# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer
+# Copyright 2011-2016 Kwant authors.
 # Copyright 2018 Mumpy Authors.
 #
 # This file is part of mumpy. It is subject to the license terms in the file
@@ -31,6 +31,7 @@ dtypes = list(precisions.keys())
 def assert_array_almost_equal(dtype, a, b):
     np.testing.assert_almost_equal(a, b, decimal=precisions[dtype])
 
+
 def assert_almost_equal(dtype, a, b):
     np.testing.assert_almost_equal(a, b, decimal=precisions[dtype])
 
@@ -53,11 +54,10 @@ def test_lu_with_dense(dtype, mat_size):
     assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
     # now "sparse" right hand side
-    xvec = ctx.solve(sp.csc_matrix(bvec.reshape(mat_size,1)))
+    xvec = ctx.solve(sp.csc_matrix(bvec.reshape(mat_size, 1)))
     xmat = ctx.solve(sp.csc_matrix(bmat))
 
-    assert_array_almost_equal(dtype, np.dot(a, xvec),
-                              bvec.reshape(mat_size, 1))
+    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
     assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
 
@@ -67,8 +67,7 @@ def test_schur_complement_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
     s = schur_complement(sp.coo_matrix(a), list(range(3)))
-    assert_array_almost_equal(dtype, np.linalg.inv(s),
-                              np.linalg.inv(a)[:3, :3])
+    assert_array_almost_equal(dtype, np.linalg.inv(s), np.linalg.inv(a)[:3, :3])
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -91,12 +90,12 @@ def test_error_minus_9(dtype):
 
     # We ensure that this first call creates a -9 error by
     # allocating only 1 MB for factorization
-    ctx.mumps_instance.icntl[23] = 1 # Memory upper bound set to 1MB
-    ctx.mumps_instance.icntl[14] = 1 # Initial memory relaxation to 1%
+    ctx.mumps_instance.icntl[23] = 1  # Memory upper bound set to 1MB
+    ctx.mumps_instance.icntl[14] = 1  # Initial memory relaxation to 1%
     ctx.mumps_instance.job = 2
     ctx.mumps_instance.call()
     # ensure that we really don't have enough memory
-    assert(ctx.mumps_instance.infog[1] == -9)
+    assert ctx.mumps_instance.infog[1] == -9
 
     # This call should not raise any errors as
     # it would successfully allocate memory
@@ -118,12 +117,12 @@ def test_nullspace_symmetric_detection(dtype):
 @pytest.mark.parametrize("mat_size", [20, 50], ids=str)
 @pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
 def test_nullspace(dtype, mat_size, symmetric_matrix):
-    """ Tests the nullspace wrapper by creating a rank deficient matrix
+    """Tests the nullspace wrapper by creating a rank deficient matrix
     with known deficiency
 
     This test is to check whether the wrapper works. The algorithm
     to obtain the nullspace basis within MUMPS is still rather
-    unclear with the use of these null pivot treshold. Suppose
+    unclear with the use of these null pivot threshold. Suppose
     that we have to live with this uncertainty, we at least create
     a test case where we know for sure the right nullspace
     dimensions and check if the subroutine has successfully
@@ -136,8 +135,7 @@ def test_nullspace(dtype, mat_size, symmetric_matrix):
             nullspace(test, False)
         except MUMPSError as error:
             if error.error == -37:
-                pytest.skip(
-                    'Installed MUMPS does not support unsymmetric nullspace')
+                pytest.skip("Installed MUMPS does not support unsymmetric nullspace")
             else:
                 raise
 
@@ -165,27 +163,24 @@ def test_nullspace(dtype, mat_size, symmetric_matrix):
     if symmetric_matrix:
         for i in range(a.shape[0]):
             for j in range(i):
-                A[i,j] = 0
+                A[i, j] = 0
         A.eliminate_zeros()
 
+    # Start with a small pivot_threshold value
+    pivot_threshold = 1e-5
+    maximum_threshold = 1.0
 
-
-    # Start with a small pivot_treshold value
-    pivot_treshold = 1e-5
-    maximum_treshold = 1.0
-
-    # We repeatedly add the treshold until we get the full nullspace basis
+    # We repeatedly add the threshold until we get the full nullspace basis
     while True:
-        X = nullspace(A, symmetric_matrix, pivot_treshold)
-        pivot_treshold += 2*1e-5
-        if ((X.shape[1] == A.shape[0]-1) or
-            (pivot_treshold > maximum_treshold)):
+        X = nullspace(A, symmetric_matrix, pivot_threshold)
+        pivot_threshold += 2 * 1e-5
+        if (X.shape[1] == A.shape[0] - 1) or (pivot_threshold > maximum_threshold):
             break
 
     # We know that the row vector dimension of the returned nullspace
     # has to be mat_size-1
-    assert(X.shape[1] == A_original.shape[0]-1)
+    assert X.shape[1] == A_original.shape[0] - 1
 
     # Check that indeed the nullspace does indeed give 0 when multiplied
     # with the input matrix
-    assert_almost_equal(dtype, la.norm(A_original * X), 0.)
+    assert_almost_equal(dtype, la.norm(A_original * X), 0.0)

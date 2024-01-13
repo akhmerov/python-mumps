@@ -1,4 +1,4 @@
-# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer
+# Copyright 2011-2016 Kwant authors.
 # Copyright 2018 Mumpy Authors.
 #
 # This file is part of mumpy. It is subject to the license terms in the file
@@ -9,8 +9,14 @@
 
 """Interface to the MUMPS sparse solver library"""
 
-__all__ = ['MUMPSContext', 'schur_complement', 'nullspace',
-           'AnalysisStatistics', 'FactorizationStatistics', 'MUMPSError']
+__all__ = [
+    "MUMPSContext",
+    "schur_complement",
+    "nullspace",
+    "AnalysisStatistics",
+    "FactorizationStatistics",
+    "MUMPSError",
+]
 
 import time
 import numpy as np
@@ -20,11 +26,25 @@ import warnings
 import mumps
 from fortran_helpers import prepare_for_fortran
 
-orderings = {'amd': 0, 'amf': 2, 'scotch': 3, 'pord': 4, 'metis': 5,
-             'qamd': 6, 'auto': 7}
+orderings = {
+    "amd": 0,
+    "amf": 2,
+    "scotch": 3,
+    "pord": 4,
+    "metis": 5,
+    "qamd": 6,
+    "auto": 7,
+}
 
-ordering_name = ['amd', 'user-defined', 'amf',
-                 'scotch', 'pord', 'metis', 'qamd']
+ordering_name = [
+    "amd",
+    "user-defined",
+    "amf",
+    "scotch",
+    "pord",
+    "metis",
+    "qamd",
+]
 
 
 def possible_orderings():
@@ -32,7 +52,7 @@ def possible_orderings():
     installation of MUMPS.
 
     Which ordering options are actually available depends how MUMPs was
-    compiled. Note that passing an ordering that is not avaialble in the
+    compiled. Note that passing an ordering that is not available in the
     current installation of MUMPS will not fail, instead MUMPS will fall back
     to a supported one.
 
@@ -47,7 +67,7 @@ def possible_orderings():
         # Try all orderings on a small test matrix, and check which one was
         # actually used.
 
-        possible_orderings.cached = ['auto']
+        possible_orderings.cached = ["auto"]
         for ordering in [0, 2, 3, 4, 5, 6]:
             data = np.asfortranarray([1, 1], dtype=np.complex128)
             row = np.asfortranarray([1, 2], dtype=mumps.int_dtype)
@@ -64,26 +84,27 @@ def possible_orderings():
 
     return possible_orderings.cached
 
+
 possible_orderings.cached = None
 
 
 error_messages = {
-    -5 : "Not enough memory during analysis phase",
-    -6 : "Matrix is singular in structure",
-    -7 : "Not enough memory during analysis phase",
-    -10 : "Matrix is numerically singular",
-    -11 : "The authors of MUMPS would like to hear about this",
-    -12 : "The authors of MUMPS would like to hear about this",
-    -13 : "Not enough memory",
-    -37 : "Nullspace basis solver not available for unsymmetric matrices"
+    -5: "Not enough memory during analysis phase",
+    -6: "Matrix is singular in structure",
+    -7: "Not enough memory during analysis phase",
+    -10: "Matrix is numerically singular",
+    -11: "The authors of MUMPS would like to hear about this",
+    -12: "The authors of MUMPS would like to hear about this",
+    -13: "Not enough memory",
+    -37: "Nullspace basis solver not available for unsymmetric matrices",
 }
+
 
 class MUMPSError(RuntimeError):
     def __init__(self, infog):
         self.error = infog[1]
         if self.error in error_messages:
-            msg = "{}. (MUMPS error {})".format(
-                error_messages[self.error], self.error)
+            msg = "{}. (MUMPS error {})".format(error_messages[self.error], self.error)
         else:
             msg = "MUMPS failed with error {}.".format(self.error)
 
@@ -94,21 +115,30 @@ class AnalysisStatistics:
     def __init__(self, inst, time=None):
         self.est_mem_incore = inst.infog[17]
         self.est_mem_ooc = inst.infog[27]
-        self.est_nonzeros = (inst.infog[20] if inst.infog[20] > 0 else
-                             -inst.infog[20] * 1000000)
+        self.est_nonzeros = (
+            inst.infog[20] if inst.infog[20] > 0 else -inst.infog[20] * 1000000
+        )
         self.est_flops = inst.rinfog[1]
         self.ordering = ordering_name[inst.infog[7]]
         self.time = time
 
     def __str__(self):
-        parts = ["estimated memory for in-core factorization:",
-                 str(self.est_mem_incore), "mbytes\n",
-                 "estimated memory for out-of-core factorization:",
-                 str(self.est_mem_ooc), "mbytes\n",
-                 "estimated number of nonzeros in factors:",
-                 str(self.est_nonzeros), "\n",
-                 "estimated number of flops:", str(self.est_flops), "\n",
-                 "ordering used:", self.ordering]
+        parts = [
+            "estimated memory for in-core factorization:",
+            str(self.est_mem_incore),
+            "mbytes\n",
+            "estimated memory for out-of-core factorization:",
+            str(self.est_mem_ooc),
+            "mbytes\n",
+            "estimated number of nonzeros in factors:",
+            str(self.est_nonzeros),
+            "\n",
+            "estimated number of flops:",
+            str(self.est_flops),
+            "\n",
+            "ordering used:",
+            self.ordering,
+        ]
         if hasattr(self, "time"):
             parts.extend(["\n analysis time:", str(self.time), "secs"])
         return " ".join(parts)
@@ -125,24 +155,41 @@ class FactorizationStatistics:
         if include_ordering:
             self.ordering = ordering_name[inst.infog[7]]
 
-        # information about runtime effiency
+        # information about runtime efficiency
         self.memory = inst.infog[22]
-        self.nonzeros = (inst.infog[29] if inst.infog[29] > 0 else
-                         -inst.infog[29] * 1000000)
+        self.nonzeros = (
+            inst.infog[29] if inst.infog[29] > 0 else -inst.infog[29] * 1000000
+        )
         self.flops = inst.rinfog[3]
         if time:
             self.time = time
 
     def __str__(self):
-        parts = ["off-diagonal pivots:", str(self.offdiag_pivots), "\n",
-                 "delayed pivots:", str(self.delayed_pivots), "\n",
-                 "tiny pivots:", str(self.tiny_pivots), "\n"]
+        parts = [
+            "off-diagonal pivots:",
+            str(self.offdiag_pivots),
+            "\n",
+            "delayed pivots:",
+            str(self.delayed_pivots),
+            "\n",
+            "tiny pivots:",
+            str(self.tiny_pivots),
+            "\n",
+        ]
         if hasattr(self, "ordering"):
             parts.extend(["ordering used:", self.ordering, "\n"])
-        parts.extend(["memory used during factorization:", str(self.memory),
-                      "mbytes\n",
-                      "nonzeros in factored matrix:", str(self.nonzeros), "\n",
-                      "floating point operations:", str(self.flops)])
+        parts.extend(
+            [
+                "memory used during factorization:",
+                str(self.memory),
+                "mbytes\n",
+                "nonzeros in factored matrix:",
+                str(self.nonzeros),
+                "\n",
+                "floating point operations:",
+                str(self.flops),
+            ]
+        )
         if hasattr(self, "time"):
             parts.extend(["\n factorization time:", str(self.time), "secs"])
         return " ".join(parts)
@@ -193,10 +240,10 @@ class MUMPSContext:
         self.verbose = verbose
         self.factored = False
 
-    def analyze(self, a, ordering='auto', overwrite_a=False):
+    def analyze(self, a, ordering="auto", overwrite_a=False):
         """Perform analysis step of MUMPS.
 
-        In the analyis step, MUMPS figures out a reordering for the matrix and
+        In the analysis step, MUMPS figures out a reordering for the matrix and
         estimates number of operations and memory needed for the factorization
         time. This step usually needs not be called separately (it is done
         automatically by `factor`), but it can be useful to test which ordering
@@ -223,13 +270,13 @@ class MUMPSContext:
         if a.ndim != 2 or a.shape[0] != a.shape[1]:
             raise ValueError("Input matrix must be square!")
 
-        if not ordering in orderings.keys():
-            raise ValueError("Unknown ordering '"+ordering+"'!")
+        if ordering not in orderings.keys():
+            raise ValueError("Unknown ordering '" + ordering + "'!")
 
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
 
         if dtype != self.dtype:
-            self.mumps_instance = getattr(mumps, dtype+"mumps")(self.verbose)
+            self.mumps_instance = getattr(mumps, dtype + "mumps")(self.verbose)
             self.dtype = dtype
 
         self.n = a.shape[0]
@@ -250,11 +297,17 @@ class MUMPSContext:
         if self.mumps_instance.infog[1] < 0:
             raise MUMPSError(self.mumps_instance.infog)
 
-        self.analysis_stats = AnalysisStatistics(self.mumps_instance,
-                                                 t2 - t1)
+        self.analysis_stats = AnalysisStatistics(self.mumps_instance, t2 - t1)
 
-    def factor(self, a, ordering='auto', ooc=False, pivot_tol=0.01,
-               reuse_analysis=False, overwrite_a=False):
+    def factor(
+        self,
+        a,
+        ordering="auto",
+        ooc=False,
+        pivot_tol=0.01,
+        reuse_analysis=False,
+        overwrite_a=False,
+    ):
         """Perform the LU factorization of the matrix.
 
         This LU factorization can then later be used to solve a linear system
@@ -301,22 +354,24 @@ class MUMPSContext:
 
         if reuse_analysis:
             if self.mumps_instance is None:
-                warnings.warn("Missing analysis although reuse_analysis=True. "
-                              "New analysis is performed.", RuntimeWarning)
+                warnings.warn(
+                    "Missing analysis although reuse_analysis=True. "
+                    "New analysis is performed.",
+                    RuntimeWarning,
+                )
                 self.analyze(a, ordering=ordering, overwrite_a=overwrite_a)
             else:
-                dtype, row, col, data = _make_assembled_from_coo(a,
-                                                                 overwrite_a)
+                dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
                 if self.dtype != dtype:
-                    raise ValueError("MUMPSContext dtype and matrix dtype "
-                                     "incompatible!")
+                    raise ValueError(
+                        "MUMPSContext dtype and matrix dtype " "incompatible!"
+                    )
 
                 self.n = a.shape[0]
                 self.row = row
                 self.col = col
                 self.data = data
-                self.mumps_instance.set_assembled_matrix(a.shape[0],
-                                                         row, col, data)
+                self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
         else:
             self.analyze(a, ordering=ordering, overwrite_a=overwrite_a)
 
@@ -342,24 +397,23 @@ class MUMPSContext:
                 done = True
 
         self.factored = True
-        self.factor_stats = FactorizationStatistics(self.mumps_instance,
-                                                    t2 - t1)
+        self.factor_stats = FactorizationStatistics(self.mumps_instance, t2 - t1)
 
     def _solve_sparse(self, b):
         b = b.tocsc()
-        x = np.empty((b.shape[0], b.shape[1]),
-                     order='F', dtype=self.data.dtype)
+        x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
 
-        dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(
-            b, self.data.dtype)
+        dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, self.data.dtype)
 
         if b.shape[0] != self.n:
             raise ValueError("Right hand side has wrong size")
 
         if self.dtype != dtype:
-            raise ValueError("Data type of right hand side is not "
-                             "compatible with the dtype of the "
-                             "linear system")
+            raise ValueError(
+                "Data type of right hand side is not "
+                "compatible with the dtype of the "
+                "linear system"
+            )
 
         self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
         self.mumps_instance.set_dense_rhs(x)
@@ -370,16 +424,19 @@ class MUMPSContext:
         return x
 
     def _solve_dense(self, b, overwrite_b=False):
-        dtype, b = prepare_for_fortran(overwrite_b, b,
-                                       np.zeros(1, dtype=self.data.dtype))[:2]
+        dtype, b = prepare_for_fortran(
+            overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
+        )[:2]
 
         if b.shape[0] != self.n:
             raise ValueError("Right hand side has wrong size")
 
         if self.dtype != dtype:
-            raise ValueError("Data type of right hand side is not "
-                             "compatible with the dtype of the "
-                             "linear system")
+            raise ValueError(
+                "Data type of right hand side is not "
+                "compatible with the dtype of the "
+                "linear system"
+            )
 
         self.mumps_instance.set_dense_rhs(b)
         self.mumps_instance.job = 3
@@ -421,8 +478,15 @@ class MUMPSContext:
             return self._solve_dense(b, overwrite_b)
 
 
-def schur_complement(a, indices, ordering='auto', ooc=False, pivot_tol=0.01,
-                     calc_stats=False, overwrite_a=False):
+def schur_complement(
+    a,
+    indices,
+    ordering="auto",
+    ooc=False,
+    pivot_tol=0.01,
+    calc_stats=False,
+    overwrite_a=False,
+):
     """Compute the Schur complement block of matrix a using MUMPS.
 
     Parameters:
@@ -474,25 +538,24 @@ def schur_complement(a, indices, ordering='auto', ooc=False, pivot_tol=0.01,
     if indices.ndim != 1:
         raise ValueError("Schur indices must be specified in a 1d array!")
 
-    if not ordering in orderings.keys():
-        raise ValueError("Unknown ordering '"+ordering+"'!")
+    if ordering not in orderings.keys():
+        raise ValueError("Unknown ordering '" + ordering + "'!")
 
     dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
     indices = _makemumps_index_array(indices)
 
-    mumps_instance = getattr(mumps, dtype+"mumps")()
+    mumps_instance = getattr(mumps, dtype + "mumps")()
 
     mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
     mumps_instance.icntl[7] = orderings[ordering]
     mumps_instance.icntl[19] = 1
     mumps_instance.icntl[31] = 1  # discard factors, from 4.10.0
-                                  # has no effect in earlier versions
+    # has no effect in earlier versions
 
-    schur_compl = np.empty((indices.size, indices.size),
-                           order='C', dtype=data.dtype)
+    schur_compl = np.empty((indices.size, indices.size), order="C", dtype=data.dtype)
     mumps_instance.set_schur(schur_compl, indices)
 
-    mumps_instance.job = 4   # job=4 -> 1 and 2 after each other
+    mumps_instance.job = 4  # job=4 -> 1 and 2 after each other
     t1 = time.perf_counter()
     mumps_instance.call()
     t2 = time.perf_counter()
@@ -500,8 +563,12 @@ def schur_complement(a, indices, ordering='auto', ooc=False, pivot_tol=0.01,
     if not calc_stats:
         return schur_compl
     else:
-        return (schur_compl, FactorizationStatistics(
-            mumps_instance, time=t2 - t1, include_ordering=True))
+        return (
+            schur_compl,
+            FactorizationStatistics(
+                mumps_instance, time=t2 - t1, include_ordering=True
+            ),
+        )
 
 
 def nullspace(a, symmetric=False, pivot_threshold=0.0):
@@ -542,20 +609,20 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
 
     # Check that input matrix is indeed upper triangular
     # when the symmetric solver has been selected.
-    if (symmetric and np.any(np.greater(row, col))):
+    if symmetric and np.any(np.greater(row, col)):
         raise ValueError("a must be an upper triangular sparse matrix")
 
     # We are using only the general symmetric solver (2), or the unsymmetric
     # solver of MUMPS (0)
     if symmetric:
-        mumps_instance = getattr(mumps, dtype+"mumps")(False, 2)
+        mumps_instance = getattr(mumps, dtype + "mumps")(False, 2)
     else:
-        mumps_instance = getattr(mumps, dtype+"mumps")(False, 0)
+        mumps_instance = getattr(mumps, dtype + "mumps")(False, 0)
 
     n = a.shape[0]
 
     mumps_instance.set_assembled_matrix(n, row, col, data)
-    ordering='auto'
+    ordering = "auto"
     mumps_instance.icntl[7] = orderings[ordering]
     mumps_instance.icntl[24] = 1
     mumps_instance.cntl[3] = pivot_threshold
@@ -570,7 +637,7 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         return np.empty((a.shape[1], 0))
 
     # Initialize matrix for null space basis
-    nullspace = np.zeros((a.shape[1], n_null), dtype=data.dtype, order='F')
+    nullspace = np.zeros((a.shape[1], n_null), dtype=data.dtype, order="F")
     # Set RHS
     mumps_instance.set_dense_rhs(nullspace)
     mumps_instance.job = 3
@@ -579,9 +646,9 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
     mumps_instance.call()
 
     if mumps_instance.infog[1] < 0:
-            raise MUMPSError(mumps_instance.infog)
+        raise MUMPSError(mumps_instance.infog)
     # Orthonormalize
-    nullspace, _ = la.qr(nullspace, mode='economic')
+    nullspace, _ = la.qr(nullspace, mode="economic")
 
     return nullspace
 
@@ -628,8 +695,7 @@ def _make_assembled_from_coo(a, overwrite_a):
 
 
 def _make_sparse_rhs_from_csc(b, dtype):
-    dtype, data = prepare_for_fortran(True, b.data,
-                                      np.zeros(1, dtype=dtype))[:2]
+    dtype, data = prepare_for_fortran(True, b.data, np.zeros(1, dtype=dtype))[:2]
 
     col_ptr = np.asfortranarray(b.indptr.astype(mumps.int_dtype))
     row_ind = np.asfortranarray(b.indices.astype(mumps.int_dtype))
@@ -643,6 +709,6 @@ def _make_sparse_rhs_from_csc(b, dtype):
 
 def _makemumps_index_array(a):
     a = np.asfortranarray(a.astype(mumps.int_dtype))
-    a += 1                      # Fortran indices
+    a += 1  # Fortran indices
 
     return a

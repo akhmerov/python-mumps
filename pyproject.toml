@@ -44,3 +44,15 @@ commands = [
   "spin.cmds.meson.build",
   "spin.cmds.meson.test"
 ]
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+
+[tool.black]
+line-length = 88
+
+[tool.codespell]
+ignore-words-list = "groth,coo"
