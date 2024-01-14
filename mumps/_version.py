@@ -9,7 +9,7 @@ except (ImportError, LookupError):
     from importlib.metadata import version, PackageNotFoundError
 
     try:
-        __version__ = version("mumpy")
+        __version__ = version("python-mumps")
     except PackageNotFoundError:
         __version__ = "0.0.0+unknown"
 

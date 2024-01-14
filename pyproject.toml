@@ -9,15 +9,15 @@ requires = [
 build-backend = "mesonpy"
 
 [project]
-name = "mumpy"
+name = "python-mumps"
 description = "Bindings and Python interface for the MUMPS sparse solver"
 readme = "README.md"
 authors = [
-    {name = "mumpy authors", email = "authors@kwant-project.org"}
+    {name = "Python-MUMPS authors", email = "authors@kwant-project.org"}
 ]
 license = {file = "LICENSE"}
-homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
-repository = "https://gitlab.kwant-project.org/kwant/mumpy"
+homepage = "https://gitlab.kwant-project.org/kwant/python-mumps"
+repository = "https://gitlab.kwant-project.org/kwant/python-mumps"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -37,10 +37,10 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
+homepage = "https://gitlab.kwant-project.org/kwant/python-mumps"
 
 [tool.spin]
-package = "mumpy"
+package = "mumps"
 commands = [
   "spin.cmds.meson.build",
   "spin.cmds.meson.test",

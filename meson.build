@@ -1,5 +1,5 @@
 project(
-    'mumpy',
+    'mumps',
     'cython', 'c',
     license: 'BSD-2-Clause',
     license_files: 'LICENSE',
@@ -8,7 +8,7 @@ project(
         'buildtype=release',
         'c_std=c99',
     ],
-    version: run_command('mumpy/_version.py', check: true).stdout().strip(),
+    version: run_command('mumps/_version.py', check: true).stdout().strip(),
 )
 
 py = import('python').find_installation(pure: false)
@@ -54,4 +54,4 @@ foreach mumps_name : mumps_names
     mumps_libs += cc.find_library(mumps_name, dirs: mumps_lib_path)
 endforeach
 
-subdir('mumpy')
+subdir('mumps')

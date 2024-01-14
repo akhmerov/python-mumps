@@ -1,29 +1,29 @@
-# mumpy
+# Python-MUMPS
 
 Python bindings for the [MUMPS](http://mumps-solver.org/): a parallel sparse direct solver.
 
 ## Installation
 
-`mumpy` works with Python 3.10 and higher on Linux, Windows and Mac.
+`python-mumps` works with Python 3.10 and higher on Linux, Windows and Mac.
 
-The recommended way to install `mumpy` is using `mamba`/`conda`.
+The recommended way to install `python-mumps` is using `mamba`/`conda`.
 
 ```bash
-mamba install -c conda-forge mumpy
+mamba install -c conda-forge python-mumps
 ```
 
-`mumpy` can also be installed from PyPI, however this is a more involved procedure
+`python-mumps` can also be installed from PyPI, however this is a more involved procedure
 that requires separately installing the MUMPS library and a C compiler.
 
 ## Usage example
 
-The following example shows how mumpy can be used to implement sparse diagonalization
+The following example shows how Python-MUMPS can be used to implement sparse diagonalization
 with Scipy.
 
 ```python
 import scipy.sparse.linalg as sla
 from scipy.sparse import identity
-import mumpy
+import mumps
 
 
 def sparse_diag(matrix, k, sigma, **kwargs):
@@ -33,7 +33,7 @@ def sparse_diag(matrix, k, sigma, **kwargs):
     """
     class LuInv(sla.LinearOperator):
         def __init__(self, A):
-            inst = mumpy.Context()
+            inst = mumps.Context()
             inst.analyze(A, ordering='pord')
             inst.factor(A)
             self.solve = inst.solve
@@ -48,13 +48,13 @@ def sparse_diag(matrix, k, sigma, **kwargs):
 
 ## Development
 
-`mumpy` recommends [Spin](https://github.com/scientific-python/spin/). Get spin with:
+`python-mumps` recommends [Spin](https://github.com/scientific-python/spin/). Get spin with:
 
 ```bash
 pip install spin
 ```
 
-Then to build, test and install `mumpy`:
+Then to build, test and install `python-mumps`:
 
 ```bash
 spin build
