@@ -1,4 +1,4 @@
-templates = files('_mumps.pxd.in', 'mumps.pyx.in')
+templates = files('_mumps.pxd.in', '_mumps.pyx.in')
 
 pyx_files = []
 foreach template : templates
@@ -14,22 +14,22 @@ foreach template : templates
     pyx_files += pyx_file
 endforeach
 
-py_files = files('__init__.py', 'mumpy.py', 'fortran_helpers.py', '_version.py')
-py.install_sources(py_files, subdir: 'mumpy')
+py_files = files('__init__.py', 'mumps.py', 'fortran_helpers.py', '_version.py')
+py.install_sources(py_files, subdir: 'mumps')
 
 foreach py_file : py_files
     fs.copyfile(py_file)
 endforeach
 
 py.extension_module(
-    'mumps',
+    '_mumps',
     pyx_files,
     dependencies: [np_dep, mumps_libs],
     include_directories: [inc_np, mumps_include],
     install_rpath: mumps_lib_path,
     build_rpath: mumps_lib_path,
     install: true,
-    subdir: 'mumpy'
+    subdir: 'mumps'
 )
 
 subdir('tests')

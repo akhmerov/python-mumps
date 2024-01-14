@@ -1,4 +1,4 @@
-from .mumpy import (
+from .mumps import (
     Context,
     MUMPSError,
     AnalysisStatistics,

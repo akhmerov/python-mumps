@@ -1,11 +1,11 @@
 # Copyright 2011-2016 Anton Akhmerov, Christoph Groth, Michael Wimmer
-# Copyright 2018 Mumpy Authors
+# Copyright 2018 Python-MUMPS Authors
 #
-# This file is part of mumpy. It is subject to the license terms in the file
+# This file is part of Python-MUMPS. It is subject to the license terms in the file
 # LICENSE found in the top-level directory of this distribution. A list of
-# mumpy authors can be found in the file AUTHORS.md at the top-level
+# Python-MUMPS authors can be found in the file AUTHORS.md at the top-level
 # directory of this distribution and at
-# https://gitlab.kwant-project.org/kwant/mumpy.
+# https://gitlab.kwant-project.org/kwant/python-mumps.
 
 import numpy as np
 

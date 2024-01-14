@@ -1,11 +1,11 @@
 # Copyright 2011-2016 Kwant authors.
-# Copyright 2018 Mumpy Authors.
+# Copyright 2018 Python-MUMPS Authors.
 #
-# This file is part of mumpy. It is subject to the license terms in the file
+# This file is part of Python-MUMPS. It is subject to the license terms in the file
 # LICENSE found in the top-level directory of this distribution. A list of
-# mumpy authors can be found in the file AUTHORS.md at the top-level
+# Python-MUMPS authors can be found in the file AUTHORS.md at the top-level
 # directory of this distribution and at
-# https://gitlab.kwant-project.org/kwant/mumpy.
+# https://gitlab.kwant-project.org/kwant/python-mumps.
 """Low-level interface to Mumps.
 
 Thin wrappers around the Mumps C API. At this stage there
@@ -13,13 +13,13 @@ are still separate interfaces for real vs. complex and single
 vs. double precision.
 
 End users should not use this interface directly unless they
-need finer control that that provided by the 'mumpy' interface.
+need finer control that that provided by the 'mumps' interface.
 """
 
 cimport numpy as np
 import numpy as np
-from mumpy cimport _mumps as mumps
-from mumpy.fortran_helpers import assert_fortran_matvec, assert_fortran_mat
+from mumps cimport _mumps as mumps
+from mumps.fortran_helpers import assert_fortran_matvec, assert_fortran_mat
 
 int_dtype = np.int32
 

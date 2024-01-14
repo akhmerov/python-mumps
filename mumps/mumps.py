@@ -1,11 +1,11 @@
 # Copyright 2011-2016 Kwant authors.
-# Copyright 2018 Mumpy Authors.
+# Copyright 2018 Python-MUMPS Authors.
 #
-# This file is part of mumpy. It is subject to the license terms in the file
+# This file is part of Python-MUMPS. It is subject to the license terms in the file
 # LICENSE found in the top-level directory of this distribution. A list of
-# mumpy authors can be found in the file AUTHORS.md at the top-level
+# Python-MUMPS authors can be found in the file AUTHORS.md at the top-level
 # directory of this distribution and at
-# https://gitlab.kwant-project.org/kwant/mumpy.
+# https://gitlab.kwant-project.org/kwant/python-mumps.
 
 """Interface to the MUMPS sparse solver library"""
 
@@ -23,8 +23,8 @@ import numpy as np
 import scipy.sparse
 import scipy.linalg as la
 
-from mumpy import mumps
-from mumpy.fortran_helpers import prepare_for_fortran
+from mumps import _mumps
+from mumps.fortran_helpers import prepare_for_fortran
 
 orderings = {
     "amd": 0,
@@ -51,7 +51,7 @@ def possible_orderings():
     """Return the ordering options that are available in the current
     installation of MUMPS.
 
-    Which ordering options are actually available depends how MUMPs was
+    Which ordering options are actually available depends how MUMPS was
     compiled. Note that passing an ordering that is not available in the
     current installation of MUMPS will not fail, instead MUMPS will fall back
     to a supported one.
@@ -70,10 +70,10 @@ def possible_orderings():
         possible_orderings.cached = ["auto"]
         for ordering in [0, 2, 3, 4, 5, 6]:
             data = np.asfortranarray([1, 1], dtype=np.complex128)
-            row = np.asfortranarray([1, 2], dtype=mumps.int_dtype)
-            col = np.asfortranarray([1, 2], dtype=mumps.int_dtype)
+            row = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
+            col = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
 
-            instance = mumps.zmumps()
+            instance = _mumps.zmumps()
             instance.set_assembled_matrix(2, row, col, data)
             instance.icntl[7] = ordering
             instance.job = 1
@@ -208,7 +208,7 @@ class Context:
 
     >>> import scipy.sparse as sp
     >>> a = sp.coo_matrix([[1., 0], [0, 2.]], dtype=complex)
-    >>> ctx = mumpy.mumps.Context()
+    >>> ctx = mumps.Context()
     >>> ctx.factor(a)
     >>> ctx.solve([1., 1.])
     array([ 1.0+0.j,  0.5+0.j])
@@ -299,10 +299,10 @@ class Context:
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
         sym = 2 if symmetric else 0
         if self.dtype != dtype:
-            self.mumps_instance = getattr(mumps, dtype + "mumps")(self.verbose, sym)
+            self.mumps_instance = getattr(_mumps, dtype + "mumps")(self.verbose, sym)
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
-        # See https://gitlab.kwant-project.org/kwant/mumpy/-/issues/13
+        # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13
         self.n = a.shape[0]
         self.row = row
         self.col = col
@@ -657,8 +657,8 @@ def _make_assembled_from_coo(a, overwrite_a):
     """
     dtype, data = prepare_for_fortran(overwrite_a, a.data)
 
-    row = np.asfortranarray(a.row.astype(mumps.int_dtype))
-    col = np.asfortranarray(a.col.astype(mumps.int_dtype))
+    row = np.asfortranarray(a.row.astype(_mumps.int_dtype))
+    col = np.asfortranarray(a.col.astype(_mumps.int_dtype))
 
     # MUMPS uses Fortran indices.
     row += 1
@@ -670,8 +670,8 @@ def _make_assembled_from_coo(a, overwrite_a):
 def _make_sparse_rhs_from_csc(b, dtype):
     dtype, data = prepare_for_fortran(True, b.data, np.zeros(1, dtype=dtype))[:2]
 
-    col_ptr = np.asfortranarray(b.indptr.astype(mumps.int_dtype))
-    row_ind = np.asfortranarray(b.indices.astype(mumps.int_dtype))
+    col_ptr = np.asfortranarray(b.indptr.astype(_mumps.int_dtype))
+    row_ind = np.asfortranarray(b.indices.astype(_mumps.int_dtype))
 
     # MUMPS uses Fortran indices.
     col_ptr += 1
@@ -681,7 +681,7 @@ def _make_sparse_rhs_from_csc(b, dtype):
 
 
 def _makemumps_index_array(a):
-    a = np.asfortranarray(a.astype(mumps.int_dtype))
+    a = np.asfortranarray(a.astype(_mumps.int_dtype))
     a += 1  # Fortran indices
 
     return a

@@ -1,6 +1,6 @@
-# Mumpy Authors
+# Python-MUMPS Authors
 
-Below is a list of the contributors to Mumpy
+Below is a list of the contributors to Python-MUMPS
 
 + [Anton Akhmerov](<https://antonakhmerov.org>)
 + Christoph Groth
