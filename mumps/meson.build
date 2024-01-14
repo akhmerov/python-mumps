@@ -21,13 +21,9 @@ foreach py_file : py_files
     fs.copyfile(py_file)
 endforeach
 
-py.extension_module(
-    '_mumps',
+py.extension_module('_mumps',
     pyx_files,
     dependencies: [np_dep, mumps_libs],
-    include_directories: [inc_np, mumps_include],
-    install_rpath: mumps_lib_path,
-    build_rpath: mumps_lib_path,
     install: true,
     subdir: 'mumps'
 )
