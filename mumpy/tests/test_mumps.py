@@ -173,3 +173,15 @@ def test_nullspace(dtype, mat_size, symmetric_matrix):
     # Check that indeed the nullspace does indeed give 0 when multiplied
     # with the input matrix
     assert_almost_equal(dtype, la.norm(A_original * X), 0.0)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_one_by_one(dtype):
+    """Test a 1x1 matrix.
+
+    This is a regression test for
+    https://gitlab.kwant-project.org/kwant/mumpy/-/issues/18
+    """
+    ctx = Context()
+    ctx.factor(sp.eye(1, dtype=dtype))
+    assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
