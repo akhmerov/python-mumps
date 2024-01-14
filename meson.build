@@ -37,28 +37,20 @@ else
 endif
 inc_np = include_directories(incdir_numpy)
 np_dep = declare_dependency(include_directories: inc_np)
-
-
-mumps_names_conda = [
-    'mumps_common_seq',
-    'dmumps_seq',
-    'zmumps_seq',
-    'cmumps_seq',
-    'smumps_seq',
-]
+mumps_names = get_option('mumps_names')
 
 # Use python's ctypes.util.find_library to find the library
 # Works for conda and Debian/Ubuntu
 mumps_lib_path = fs.parent(run_command(py,
     [
     '-c',
-    'import ctypes.util; print(ctypes.util.find_library("@0@"))'.format(mumps_names_conda[0])
+    'import ctypes.util; print(ctypes.util.find_library("@0@"))'.format(mumps_names[0])
     ],
     check: true
 ).stdout().strip())
 mumps_include = include_directories(mumps_lib_path / '..' / 'include')
 mumps_libs = []
-foreach mumps_name : mumps_names_conda
+foreach mumps_name : mumps_names
     mumps_libs += cc.find_library(mumps_name, dirs: mumps_lib_path)
 endforeach
 
