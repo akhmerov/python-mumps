@@ -207,7 +207,7 @@ class Context:
     Solving a small system of equations.
 
     >>> import scipy.sparse as sp
-    >>> a = sp.coo_matrix([[1.,0],[0,2.]], dtype=complex)
+    >>> a = sp.coo_matrix([[1., 0], [0, 2.]], dtype=complex)
     >>> ctx = mumpy.mumps.Context()
     >>> ctx.factor(a)
     >>> ctx.solve([1., 1.])
