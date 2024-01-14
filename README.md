@@ -2,19 +2,18 @@
 
 Python bindings for the [MUMPS](http://mumps-solver.org/): a parallel sparse direct solver.
 
-
 ## Installation
 
 `mumpy` works with Python 3.10 and higher on Linux, Windows and Mac.
 
-The recommended way to install `mumpy` is using [`conda`](https://conda.io/):
+The recommended way to install `mumpy` is using `mamba`/`conda`.
+
 ```bash
-conda install -c conda-forge mumpy
+mamba install -c conda-forge mumpy
 ```
 
 `mumpy` can also be installed from PyPI, however this is a more involved procedure
 that requires separately installing the MUMPS library and a C compiler.
-
 
 ## Usage example
 
