@@ -22,7 +22,6 @@ import time
 import numpy as np
 import scipy.sparse
 import scipy.linalg as la
-import warnings
 
 from mumpy import mumps
 from mumpy.fortran_helpers import prepare_for_fortran
@@ -247,11 +246,53 @@ class Context:
     def __exit__(self, exc_type, exc_value, traceback):
         # Force MUMPS to deallocate memory
         self.job = -2
-        self.mumps_instance.call()
+        self.call()
         self.mumps_instance = None
         return False
 
-    def analyze(self, a, ordering="auto", overwrite_a=False):
+    def call(self):
+        """Execute the MUMPS subroutine.
+
+        Compared to directly calling the MUMPS subroutine, this method
+        automatically checks the return code and raises an exception if
+        an error occurred. Additionally it returns the time spent.
+
+        Raises
+        ------
+        MUMPSError
+            if the MUMPS subroutine returned an error code.
+
+        Returns
+        -------
+        time : float
+            time spent in the MUMPS subroutine.
+        """
+        t1 = time.perf_counter()
+        self.mumps_instance.call()
+        t2 = time.perf_counter()
+        if self.mumps_instance.infog[1] < 0:
+            raise MUMPSError(self.mumps_instance.infog)
+        return t2 - t1
+
+    def set_matrix(self, a, overwrite_a=False):
+        a = scipy.sparse.coo_matrix(a)
+
+        if a.ndim != 2 or a.shape[0] != a.shape[1]:
+            raise ValueError("Input matrix must be square!")
+
+        dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
+        if self.dtype != dtype:
+            self.mumps_instance = getattr(mumps, dtype + "mumps")(self.verbose)
+            self.dtype = dtype
+        # Note: We store the matrix data to avoid garbage collection.
+        # See https://gitlab.kwant-project.org/kwant/mumpy/-/issues/13
+        self.n = a.shape[0]
+        self.row = row
+        self.col = col
+        self.data = data
+        self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+
+    def analyze(self, a=None, ordering="auto", overwrite_a=False):
         """Perform analysis step of MUMPS.
 
         In the analysis step, MUMPS figures out a reordering for the matrix and
@@ -266,7 +307,8 @@ class Context:
 
         a : sparse SciPy matrix
             input matrix. Internally, the matrix is converted to `coo` format
-            (so passing this format is best for performance)
+            (so passing this format is best for performance). If `a` is not
+            given, the matrix passed to `set_matrix` is used.
         ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
             ordering to use in the factorization. The availability of a
             particular ordering depends on the MUMPS installation.  Default is
@@ -275,44 +317,20 @@ class Context:
             whether the data in a may be overwritten, which can lead to a small
             performance gain. Default is False.
         """
-
-        a = a.tocoo()
-
-        if a.ndim != 2 or a.shape[0] != a.shape[1]:
-            raise ValueError("Input matrix must be square!")
-
         if ordering not in orderings.keys():
             raise ValueError("Unknown ordering '" + ordering + "'!")
 
-        dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
-
-        if dtype != self.dtype:
-            self.mumps_instance = getattr(mumps, dtype + "mumps")(self.verbose)
-            self.dtype = dtype
-
-        self.n = a.shape[0]
-        self.row = row
-        self.col = col
-        self.data = data
-        # Note: if I don't store them, they go out of scope and are
-        #       deleted. I however need the memory to stay around!
-
-        self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+        if a is not None:
+            self.set_matrix(a, overwrite_a)
         self.mumps_instance.icntl[7] = orderings[ordering]
         self.mumps_instance.job = 1
-        t1 = time.perf_counter()
-        self.mumps_instance.call()
-        t2 = time.perf_counter()
+        t = self.call()
         self.factored = False
-
-        if self.mumps_instance.infog[1] < 0:
-            raise MUMPSError(self.mumps_instance.infog)
-
-        self.analysis_stats = AnalysisStatistics(self.mumps_instance, t2 - t1)
+        self.analysis_stats = AnalysisStatistics(self.mumps_instance, t)
 
     def factor(
         self,
-        a,
+        a=None,
         ordering="auto",
         ooc=False,
         pivot_tol=0.01,
@@ -330,7 +348,8 @@ class Context:
 
         a : sparse SciPy matrix
             input matrix. Internally, the matrix is converted to `coo` format
-            (so passing this format is best for performance)
+            (so passing this format is best for performance). If `a` is not
+            given, the matrix passed to `analyze` is used.
         ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
             ordering to use in the factorization. The availability of a
             particular ordering depends on the MUMPS installation.  Default is
@@ -355,58 +374,33 @@ class Context:
             whether the data in a may be overwritten, which can lead to a small
             performance gain. Default is False.
         """
-        a = a.tocoo()
-
-        if a.ndim != 2 or a.shape[0] != a.shape[1]:
-            raise ValueError("Input matrix must be square!")
-
-        # Analysis phase must be done before factorization
-        # Note: previous analysis is reused only if reuse_analysis == True
-
-        if reuse_analysis:
-            if self.mumps_instance is None:
-                warnings.warn(
-                    "Missing analysis although reuse_analysis=True. "
-                    "New analysis is performed.",
-                    RuntimeWarning,
-                )
-                self.analyze(a, ordering=ordering, overwrite_a=overwrite_a)
-            else:
-                dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
-                if self.dtype != dtype:
-                    raise ValueError("Context dtype and matrix dtype are incompatible!")
-
-                self.n = a.shape[0]
-                self.row = row
-                self.col = col
-                self.data = data
-                self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
-        else:
-            self.analyze(a, ordering=ordering, overwrite_a=overwrite_a)
+        if reuse_analysis and self.mumps_instance is None:
+            raise ValueError("Missing analysis although reuse_analysis=True.")
+        if a is not None:
+            self.set_matrix(a, overwrite_a)
+        if not reuse_analysis:
+            self.analyze(ordering=ordering, overwrite_a=overwrite_a)
 
         self.mumps_instance.icntl[22] = 1 if ooc else 0
         self.mumps_instance.job = 2
         self.mumps_instance.cntl[1] = pivot_tol
 
-        done = False
-        while not done:
-            t1 = time.perf_counter()
-            self.mumps_instance.call()
-            t2 = time.perf_counter()
-
-            # error -8, -9 (not enough allocated memory) is treated
-            # specially, by increasing the memory relaxation parameter
-            if self.mumps_instance.infog[1] < 0:
+        while True:
+            try:
+                t = self.call()
+            except MUMPSError:
+                # error -8, -9 (not enough allocated memory) is treated
+                # specially, by increasing the memory relaxation parameter
                 if self.mumps_instance.infog[1] in (-8, -9):
-                    # double the additional memory
+                    # Double the memory relaxation parameter
                     self.mumps_instance.icntl[14] *= 2
                 else:
-                    raise MUMPSError(self.mumps_instance.infog)
+                    raise
             else:
-                done = True
+                break
 
         self.factored = True
-        self.factor_stats = FactorizationStatistics(self.mumps_instance, t2 - t1)
+        self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
         b = b.tocsc()
@@ -428,7 +422,7 @@ class Context:
         self.mumps_instance.set_dense_rhs(x)
         self.mumps_instance.job = 3
         self.mumps_instance.icntl[20] = 1
-        self.mumps_instance.call()
+        self.call()
 
         return x
 
@@ -449,7 +443,7 @@ class Context:
 
         self.mumps_instance.set_dense_rhs(b)
         self.mumps_instance.job = 3
-        self.mumps_instance.call()
+        self.call()
 
         return b
 
@@ -533,51 +527,25 @@ def schur_complement(
         statistics of the factorization as collected by MUMPS.  Only returned
         if ``calc_stats==True``.
     """
-
-    if not scipy.sparse.isspmatrix(a):
-        raise ValueError("a must be a sparse SciPy matrix!")
-
-    a = a.tocoo()
-
-    if a.ndim != 2 or a.shape[0] != a.shape[1]:
-        raise ValueError("Input matrix must be square!")
-
     indices = np.asanyarray(indices)
-
     if indices.ndim != 1:
         raise ValueError("Schur indices must be specified in a 1d array!")
-
-    if ordering not in orderings.keys():
-        raise ValueError("Unknown ordering '" + ordering + "'!")
-
-    dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
     indices = _makemumps_index_array(indices)
+    schur_compl = np.empty((indices.size, indices.size), order="C", dtype=a.dtype)
 
-    mumps_instance = getattr(mumps, dtype + "mumps")()
+    with Context() as ctx:
+        ctx.set_matrix(a, overwrite_a=overwrite_a)
+        ctx.mumps_instance.icntl[19] = 1
+        ctx.mumps_instance.icntl[31] = 1
+        ctx.mumps_instance.set_schur(schur_compl, indices)
+        ctx.analyze(ordering=ordering)
+        # Job = Schur, discard factors
+        ctx.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
 
-    mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
-    mumps_instance.icntl[7] = orderings[ordering]
-    mumps_instance.icntl[19] = 1
-    mumps_instance.icntl[31] = 1  # discard factors, from 4.10.0
-    # has no effect in earlier versions
-
-    schur_compl = np.empty((indices.size, indices.size), order="C", dtype=data.dtype)
-    mumps_instance.set_schur(schur_compl, indices)
-
-    mumps_instance.job = 4  # job=4 -> 1 and 2 after each other
-    t1 = time.perf_counter()
-    mumps_instance.call()
-    t2 = time.perf_counter()
-
-    if not calc_stats:
-        return schur_compl
+    if calc_stats:
+        return [schur_compl, ctx.analysis_stats, ctx.factor_stats]
     else:
-        return (
-            schur_compl,
-            FactorizationStatistics(
-                mumps_instance, time=t2 - t1, include_ordering=True
-            ),
-        )
+        return schur_compl
 
 
 def nullspace(a, symmetric=False, pivot_threshold=0.0):

@@ -41,7 +41,7 @@ def prepare_for_fortran(overwrite, *args):
         if args[i] is not None:
             arr = np.asanyarray(args[i])
             if not np.issubdtype(arr.dtype, np.number):
-                raise ValueError("Argument cannot be interpreted " "as a numeric array")
+                raise ValueError("Argument cannot be interpreted as a numeric array")
 
             mats[i] = (arr, arr is not args[i] or overwrite)
         else:
@@ -113,9 +113,9 @@ def assert_fortran_matvec(*arrays):
     # where 1x1 matrices do not have the F_Contiguous flag set correctly.
     for arr in arrays:
         if arr.ndim not in (1, 2):
-            raise ValueError("Input must be either a vector " "or a matrix.")
+            raise ValueError("Input must be either a vector or a matrix.")
 
         if not arr.flags["F_CONTIGUOUS"] or (
             arr.ndim == 2 and arr.shape[0] == 1 and arr.shape[1] == 1
         ):
-            raise ValueError("Input must be a Fortran ordered " "NumPy array")
+            raise ValueError("Input must be a Fortran ordered NumPy array")

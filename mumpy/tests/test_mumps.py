@@ -71,15 +71,15 @@ def test_schur_complement_with_dense(dtype, mat_size):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-def test_factor_warning(dtype):
-    """Test that a warning is raised if factor is asked without analysis."""
+def test_factor_error(dtype):
+    """Test that an error is raised if factor is asked to reuse missing analysis."""
     a = sp.identity(10, dtype=dtype)
-    with pytest.warns(RuntimeWarning):
+    with pytest.raises(ValueError):
         Context().factor(a, reuse_analysis=True)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-def test_error_minus_9(dtype):
+def test_error_minus_19(dtype):
     """Test if MUMPSError -19 is properly caught by increasing memory"""
     ctx = Context()
 
