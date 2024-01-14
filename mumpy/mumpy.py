@@ -274,15 +274,32 @@ class Context:
             raise MUMPSError(self.mumps_instance.infog)
         return t2 - t1
 
-    def set_matrix(self, a, overwrite_a=False):
+    def set_matrix(self, a, overwrite_a=False, symmetric=False):
+        """Set the matrix to be used in the next analysis or factorization step.
+
+        Parameters
+        ----------
+        a : sparse SciPy matrix
+            input matrix. Internally, the matrix is converted to `coo` format
+            (so passing this format is best for performance).
+        overwrite_a : True or False
+            whether the data in a may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        symmetric: True or False
+            whether the matrix is symmetric. Default is False. If True, only
+            the upper triangular part of the matrix is used.
+        """
         a = scipy.sparse.coo_matrix(a)
+        if symmetric:
+            a = scipy.sparse.triu(a)
 
         if a.ndim != 2 or a.shape[0] != a.shape[1]:
             raise ValueError("Input matrix must be square!")
 
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
+        sym = 2 if symmetric else 0
         if self.dtype != dtype:
-            self.mumps_instance = getattr(mumps, dtype + "mumps")(self.verbose)
+            self.mumps_instance = getattr(mumps, dtype + "mumps")(self.verbose, sym)
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/mumpy/-/issues/13
@@ -576,54 +593,33 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
     -----
     Some versions of MUMPS do not support finding the nullspace of
     non-symmetric matrices. In this case a MUMPSError will be raised.
-
     """
-    if not scipy.sparse.isspmatrix(a):
-        raise ValueError("a must be a sparse matrix")
+    with Context() as ctx:
+        ctx.set_matrix(a, symmetric=symmetric)
 
-    a = a.tocoo()
-    dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a=False)
+        ordering = "auto"
+        ctx.mumps_instance.icntl[7] = orderings[ordering]
+        ctx.mumps_instance.icntl[24] = 1
+        ctx.mumps_instance.cntl[3] = pivot_threshold
+        ctx.mumps_instance.job = 4
 
-    # Check that input matrix is indeed upper triangular
-    # when the symmetric solver has been selected.
-    if symmetric and np.any(np.greater(row, col)):
-        raise ValueError("a must be an upper triangular sparse matrix")
+        # Find null pivots
+        ctx.call()
 
-    # We are using only the general symmetric solver (2), or the unsymmetric
-    # solver of MUMPS (0)
-    if symmetric:
-        mumps_instance = getattr(mumps, dtype + "mumps")(False, 2)
-    else:
-        mumps_instance = getattr(mumps, dtype + "mumps")(False, 0)
+        # Get the size of the null space
+        n_null = ctx.mumps_instance.infog[28]
+        if n_null == 0:
+            return np.empty((a.shape[1], 0))
 
-    n = a.shape[0]
+        # Initialize matrix for null space basis
+        nullspace = np.zeros((a.shape[1], n_null), dtype=ctx.data.dtype, order="F")
+        # Set RHS
+        ctx.mumps_instance.set_dense_rhs(nullspace)
+        ctx.mumps_instance.job = 3
+        # Return all null space basis vectors, overwriting RHS
+        ctx.mumps_instance.icntl[25] = -1
+        ctx.call()
 
-    mumps_instance.set_assembled_matrix(n, row, col, data)
-    ordering = "auto"
-    mumps_instance.icntl[7] = orderings[ordering]
-    mumps_instance.icntl[24] = 1
-    mumps_instance.cntl[3] = pivot_threshold
-    mumps_instance.job = 4
-
-    # Find null pivots
-    mumps_instance.call()
-
-    # Get the size of the null space
-    n_null = mumps_instance.infog[28]
-    if n_null == 0:
-        return np.empty((a.shape[1], 0))
-
-    # Initialize matrix for null space basis
-    nullspace = np.zeros((a.shape[1], n_null), dtype=data.dtype, order="F")
-    # Set RHS
-    mumps_instance.set_dense_rhs(nullspace)
-    mumps_instance.job = 3
-    # Return all null space basis vectors, overwriting RHS
-    mumps_instance.icntl[25] = -1
-    mumps_instance.call()
-
-    if mumps_instance.infog[1] < 0:
-        raise MUMPSError(mumps_instance.infog)
     # Orthonormalize
     nullspace, _ = la.qr(nullspace, mode="economic")
 

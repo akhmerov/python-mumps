@@ -103,17 +103,6 @@ def test_error_minus_19(dtype):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-def test_nullspace_symmetric_detection(dtype):
-    """Test that 'nullspace' detects matrices of the incorrect format"""
-
-    rand = _Random()
-    a = sp.coo_matrix(rand.randmat(10, 10, dtype))
-
-    with pytest.raises(ValueError):
-        nullspace(a, symmetric=True)
-
-
-@pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [20, 50], ids=str)
 @pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
 def test_nullspace(dtype, mat_size, symmetric_matrix):
