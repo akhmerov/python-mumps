@@ -3,7 +3,7 @@
 Python bindings for the [MUMPS](http://mumps-solver.org/): a parallel sparse direct solver.
 
 
-# Installation
+## Installation
 
 `mumpy` works with Python 3.10 and higher on Linux, Windows and Mac.
 
@@ -16,7 +16,7 @@ conda install -c conda-forge mumpy
 that requires separately installing the MUMPS library and a C compiler.
 
 
-# Usage example
+## Usage example
 
 The following example shows how mumpy can be used to implement sparse diagonalization
 with Scipy.
@@ -45,4 +45,20 @@ def sparse_diag(matrix, k, sigma, **kwargs):
 
     opinv = LuInv(matrix - sigma * identity(matrix.shape[0]))
     return sla.eigsh(matrix, k, sigma=sigma, OPinv=opinv, **kwargs)
+```
+
+## Development
+
+`mumpy` recommends [Spin](https://github.com/scientific-python/spin/). Get spin with:
+
+```bash
+pip install spin
+```
+
+Then to build, test and install `mumpy`:
+
+```bash
+spin build
+spin test -- --lf  # (Pytest arguments go after --)
+spin install
 ```
