@@ -1,0 +1,60 @@
+[build-system]
+requires = [
+    "cython >= 3.0.2",
+    "meson >= 1.1.0",
+    "meson-python >= 0.15.0",
+    "numpy==1.24.4; python_version=='3.11' and platform_python_implementation != 'PyPy'",
+    "setuptools_scm",
+]
+build-backend = "mesonpy"
+
+[project]
+name = "mumpy"
+description = "Bindings and Python interface for the MUMPS sparse solver"
+readme = "README.md"
+authors = [
+    {name = "mumpy authors", email = "authors@kwant-project.org"}
+]
+license = {file = "LICENSE"}
+homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
+repository = "https://gitlab.kwant-project.org/kwant/mumpy"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows"
+]
+requires-python = ">= 3.10"
+dependencies = [
+    "numpy >= 1.24",
+    "scipy >= 1.9",
+]
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://gitlab.kwant-project.org/kwant/mumpy"
+
+[tool.spin]
+package = "mumpy"
+commands = [
+  "spin.cmds.meson.build",
+  "spin.cmds.meson.test",
+  "spin.cmds.pip.install"
+]
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+
+[tool.black]
+line-length = 88
+
+[tool.codespell]
+ignore-words-list = "groth,coo"

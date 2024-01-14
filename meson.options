@@ -1,0 +1,6 @@
+option(
+    'mumps_names',
+    type: 'array',
+    value: ['mumps_common_seq', 'dmumps_seq', 'zmumps_seq', 'cmumps_seq', 'smumps_seq'],
+    description: 'MUMPS library names to link against. Default is: ones used in conda-forge.'
+)

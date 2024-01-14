@@ -1,4 +1,4 @@
-# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer
+# Copyright 2011-2016 Kwant authors.
 # Copyright 2018 Mumpy Authors.
 #
 # This file is part of mumpy. It is subject to the license terms in the file
@@ -27,7 +27,7 @@ class _Random:
 
         self._x = (a * self._x + c) % m
 
-        return (float(self._x)/m-0.5)*2
+        return (float(self._x) / m - 0.5) * 2
 
     def _randi(self):
         # A very bad random number generator returning number between 0 and 20.
@@ -42,25 +42,25 @@ class _Random:
         return self._x % 21
 
     def randmat(self, n, m, dtype):
-        mat = np.empty((n, m), dtype = dtype)
+        mat = np.empty((n, m), dtype=dtype)
 
         if issubclass(dtype, np.complexfloating):
             for i in range(n):
                 for j in range(m):
-                    mat[i,j] = self._randf() + 1j * self._randf()
+                    mat[i, j] = self._randf() + 1j * self._randf()
         elif issubclass(dtype, np.floating):
             for i in range(n):
                 for j in range(m):
-                    mat[i,j] = self._randf()
+                    mat[i, j] = self._randf()
         elif issubclass(dtype, np.integer):
             for i in range(n):
                 for j in range(m):
-                    mat[i,j] = self._randi()
+                    mat[i, j] = self._randi()
 
         return mat
 
     def randvec(self, n, dtype):
-        vec = np.empty(n, dtype = dtype)
+        vec = np.empty(n, dtype=dtype)
 
         if issubclass(dtype, np.complexfloating):
             for i in range(n):

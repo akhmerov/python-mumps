@@ -1,4 +1,4 @@
-# Copyright 2011-2016 Anton Akhmerov, Christoph Groth, and Michael Wimmer
+# Copyright 2011-2016 Kwant authors.
 # Copyright 2018 Mumpy Authors.
 #
 # This file is part of mumpy. It is subject to the license terms in the file
@@ -18,8 +18,8 @@ need finer control that that provided by the 'mumpy' interface.
 
 cimport numpy as np
 import numpy as np
-from . cimport _mumps as mumps
-from .fortran_helpers import assert_fortran_matvec, assert_fortran_mat
+from mumpy cimport _mumps as mumps
+from mumpy.fortran_helpers import assert_fortran_matvec, assert_fortran_mat
 
 int_dtype = np.int32
 
@@ -54,9 +54,9 @@ cdef make_mumps_int_array(mumps.MUMPS_INT *array):
     wrapper.array = array
     return wrapper
 
-{% for p in 'SDCZ' %}
+{{for p in 'SDCZ'}}
 
-cdef class {{p|lower}}mumps_real_array:
+cdef class {{p.lower()}}mumps_real_array:
     cdef mumps.{{p}}MUMPS_REAL *array
 
     def __init__(self):
@@ -69,25 +69,25 @@ cdef class {{p|lower}}mumps_real_array:
         self.array[key - 1] = value
 
 
-cdef make_{{p|lower}}mumps_real_array(mumps.{{p}}MUMPS_REAL *array):
-    wrapper = {{p|lower}}mumps_real_array()
+cdef make_{{p.lower()}}mumps_real_array(mumps.{{p}}MUMPS_REAL *array):
+    wrapper = {{p.lower()}}mumps_real_array()
     wrapper.array = array
     return wrapper
 
-{% endfor %}
+{{endfor}}
 #############################################################
 
-{% for p in 'SDCZ' %}
+{{for p in 'SDCZ'}}
 
-cdef class {{p|lower}}mumps:
+cdef class {{p.lower()}}mumps:
     cdef mumps.{{p}}MUMPS_STRUC_C params
 
     cdef public mumps_int_array icntl
-    cdef public {{p|lower}}mumps_real_array cntl
+    cdef public {{p.lower()}}mumps_real_array cntl
     cdef public mumps_int_array info
     cdef public mumps_int_array infog
-    cdef public {{p|lower}}mumps_real_array rinfo
-    cdef public {{p|lower}}mumps_real_array rinfog
+    cdef public {{p.lower()}}mumps_real_array rinfo
+    cdef public {{p.lower()}}mumps_real_array rinfog
 
     def __init__(self, verbose=False, sym=0):
         self.params.job = -1
@@ -95,14 +95,14 @@ cdef class {{p|lower}}mumps:
         self.params.par = 1
         self.params.comm_fortran = -987654
 
-        mumps.{{p|lower}}mumps_c(&self.params)
+        mumps.{{p.lower()}}mumps_c(&self.params)
 
         self.icntl = make_mumps_int_array(self.params.icntl)
-        self.cntl = make_{{p|lower}}mumps_real_array(self.params.cntl)
+        self.cntl = make_{{p.lower()}}mumps_real_array(self.params.cntl)
         self.info = make_mumps_int_array(self.params.info)
         self.infog = make_mumps_int_array(self.params.infog)
-        self.rinfo = make_{{p|lower}}mumps_real_array(self.params.rinfo)
-        self.rinfog = make_{{p|lower}}mumps_real_array(self.params.rinfog)
+        self.rinfo = make_{{p.lower()}}mumps_real_array(self.params.rinfo)
+        self.rinfog = make_{{p.lower()}}mumps_real_array(self.params.rinfog)
 
         # no diagnostic output (MUMPS is very verbose normally)
         if not verbose:
@@ -111,10 +111,10 @@ cdef class {{p|lower}}mumps:
 
     def __dealloc__(self):
         self.params.job = -2
-        mumps.{{p|lower}}mumps_c(&self.params)
+        mumps.{{p.lower()}}mumps_c(&self.params)
 
     def call(self):
-        mumps.{{p|lower}}mumps_c(&self.params)
+        mumps.{{p.lower()}}mumps_c(&self.params)
 
     def _set_job(self, value):
         self.params.job = value
@@ -182,4 +182,4 @@ cdef class {{p|lower}}mumps:
         self.params.schur = <mumps.{{p}}MUMPS_COMPLEX *>schur.data
         self.params.listvar_schur = <mumps.MUMPS_INT *>schur_vars.data
 
-{% endfor %}
+{{endfor}}
