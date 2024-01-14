@@ -1,5 +1,5 @@
 project(
-    'mumps',
+    'python-mumps',
     'cython', 'c',
     license: 'BSD-2-Clause',
     license_files: 'LICENSE',
