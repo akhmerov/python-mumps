@@ -27,3 +27,43 @@ pre-commit:
   script:
     - git config --global --add safe.directory $CI_PROJECT_DIR
     - pre-commit run --all-files
+
+publish to test pypi:
+  needs:
+    - build and test
+    - pre-commit
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
+  cache:
+    paths:
+      - micromamba
+  before_script:
+    - mkdir -p micromamba
+    - export MAMBA_ROOT_PREFIX=micromamba
+    - micromamba create -yf environment.yml
+    - eval "$(micromamba shell hook --shell bash)"
+    - micromamba activate mumps
+  script:
+    - python -m build -s
+    - twine check dist/*
+    - twine upload -u __token__ -p $PYPI_TEST_TOKEN --repository testpypi dist/*
+
+publish to pypi:
+  needs:
+    - build and test
+    - pre-commit
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
+  cache:
+    paths:
+      - micromamba
+  before_script:
+    - mkdir -p micromamba
+    - export MAMBA_ROOT_PREFIX=micromamba
+    - micromamba create -yf environment.yml
+    - eval "$(micromamba shell hook --shell bash)"
+    - micromamba activate mumps
+  script:
+    - python -m build -s
+    - twine check dist/*
+    - twine upload -u __token__ -p $PYPI_TOKEN dist/*
