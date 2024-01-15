@@ -1,31 +1,25 @@
 image: mambaorg/micromamba:1.5.6-jammy
 
+cache:
+  paths:
+    - micromamba
+    - .pre-commit-cache
+before_script:
+  - mkdir -p micromamba
+  - export MAMBA_ROOT_PREFIX=micromamba
+  - micromamba create -yf environment.yml
+  - eval "$(micromamba shell hook --shell bash)"
+  - micromamba activate mumps
+  - git config --global --add safe.directory $CI_PROJECT_DIR
+variables:
+  PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
+
 build and test:
-  cache:
-    paths:
-      - micromamba
-  before_script:
-    - mkdir -p micromamba
-    - export MAMBA_ROOT_PREFIX=micromamba
-    - micromamba create -yf environment.yml
-    - eval "$(micromamba shell hook --shell bash)"
-    - micromamba activate mumps
   script:
     - spin test
 
 pre-commit:
-  cache:
-    paths:
-      - micromamba
-      - .pre-commit-cache
-  variables:
-    PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
-  before_script:
-    - mkdir -p micromamba
-    - export MAMBA_ROOT_PREFIX=micromamba
-    - micromamba install -y -c conda-forge pre-commit git
   script:
-    - git config --global --add safe.directory $CI_PROJECT_DIR
     - pre-commit run --all-files
 
 publish to test pypi:
@@ -34,15 +28,6 @@ publish to test pypi:
     - pre-commit
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
-  cache:
-    paths:
-      - micromamba
-  before_script:
-    - mkdir -p micromamba
-    - export MAMBA_ROOT_PREFIX=micromamba
-    - micromamba create -yf environment.yml
-    - eval "$(micromamba shell hook --shell bash)"
-    - micromamba activate mumps
   script:
     - python -m build -s
     - twine check dist/*
@@ -54,15 +39,6 @@ publish to pypi:
     - pre-commit
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
-  cache:
-    paths:
-      - micromamba
-  before_script:
-    - mkdir -p micromamba
-    - export MAMBA_ROOT_PREFIX=micromamba
-    - micromamba create -yf environment.yml
-    - eval "$(micromamba shell hook --shell bash)"
-    - micromamba activate mumps
   script:
     - python -m build -s
     - twine check dist/*

@@ -14,5 +14,7 @@ dependencies:
   - cython
   - pytest
   - twine
+  - pre-commit
+  - git
   - pip:
     - spin
