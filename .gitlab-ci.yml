@@ -29,7 +29,9 @@ publish to test pypi:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
   script:
-    - python -m build -s
+    - python -m build
+    - mkdir wheelhouse && mv dist/*.whl wheelhouse
+    - auditwheel repair --plat manylinux_2_12_x86_64 wheelhouse/*.whl -w dist
     - twine check dist/*
     - twine upload -u __token__ -p $PYPI_TEST_TOKEN --repository testpypi dist/*
 
@@ -40,6 +42,8 @@ publish to pypi:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
   script:
-    - python -m build -s
+    - python -m build
+    - mkdir wheelhouse && mv dist/*.whl wheelhouse
+    - auditwheel repair --plat manylinux_2_12_x86_64 wheelhouse/*.whl -w dist
     - twine check dist/*
     - twine upload -u __token__ -p $PYPI_TOKEN dist/*

@@ -16,5 +16,7 @@ dependencies:
   - twine
   - pre-commit
   - git
+  - patchelf
+  - auditwheel
   - pip:
     - spin
