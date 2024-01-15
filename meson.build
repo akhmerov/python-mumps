@@ -41,7 +41,12 @@ mumps_names = get_option('mumps_names')
 
 mumps_libs = []
 foreach mumps_name : mumps_names
-    mumps_libs += cc.find_library(mumps_name)
+    if cc.find_library(mumps_name, required: false).found()
+        mumps_libs += cc.find_library(mumps_name)
+    else
+        # Fall back to the name without '_seq'.
+        mumps_libs += cc.find_library(mumps_name.substring(0, -4))
+    endif
 endforeach
 
 subdir('mumps')

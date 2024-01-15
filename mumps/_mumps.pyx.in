@@ -93,7 +93,7 @@ cdef class {{p.lower()}}mumps:
         self.params.job = -1
         self.params.sym = sym
         self.params.par = 1
-        self.params.comm_fortran = -987654
+        self.params.comm_fortran = -987654  # MPI_COMM_WORLD, according to docs
 
         mumps.{{p.lower()}}mumps_c(&self.params)
 
