@@ -1,0 +1,17 @@
+name: mumps
+channels: [conda-forge]
+dependencies:
+  - mumps-seq=5.2
+  - metis=5.1.0
+  - pip
+  - python=3.11
+  - build
+  - numpy
+  - scipy
+  - meson
+  - ninja
+  - compilers
+  - cython
+  - pytest
+  - pip:
+    - spin

@@ -1,0 +1,14 @@
+image: mambaorg/micromamba:1.5.6-jammy
+
+build and test:
+  cache:
+    paths:
+      - micromamba
+  before_script:
+    - mkdir -p micromamba
+    - export MAMBA_ROOT_PREFIX=micromamba
+    - micromamba create -f environment.yml
+    - eval "$(micromamba shell hook --shell bash)"
+    - micromamba activate mumps
+  script:
+    - spin test

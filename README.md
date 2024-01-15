@@ -2,6 +2,17 @@
 
 Python bindings for the [MUMPS](http://mumps-solver.org/): a parallel sparse direct solver.
 
+## Scope
+
+This package targets MUMPS packaged by conda-forge using Cython bindings. It
+aims to provide a full wrapper of the MUMPS sequential API. Its primary target
+OS is Linux.
+
+Next steps include:
+
+- Support for Windows and OSX
+- Support for distributed (MPI) MUMPS
+
 ## Installation
 
 `python-mumps` works with Python 3.10 and higher on Linux, Windows and Mac.
