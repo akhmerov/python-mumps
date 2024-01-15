@@ -16,10 +16,13 @@ build and test:
 pre-commit:
   cache:
     paths:
+      - micromamba
       - .pre-commit-cache
   variables:
     PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
   before_script:
+    - mkdir -p micromamba
+    - export MAMBA_ROOT_PREFIX=micromamba
     - micromamba install -y -c conda-forge pre-commit git
   script:
     - git config --global --add safe.directory $CI_PROJECT_DIR
