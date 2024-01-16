@@ -488,6 +488,10 @@ class Context:
             the solution to the linear system as a dense matrix (a vector is
             returned if b was a vector, otherwise a matrix is returned).
         """
+        if b.ndim == 2 and b.shape[1] == 0:
+            # Empty right hand side
+            # We can return the copy directly because there is no data to be mutated.
+            return b
 
         if not self.factored:
             raise RuntimeError("Factorization must be done before solving!")

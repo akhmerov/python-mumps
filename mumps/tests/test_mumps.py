@@ -185,3 +185,13 @@ def test_one_by_one(dtype):
     ctx = Context()
     ctx.factor(sp.eye(1, dtype=dtype))
     assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_zero_size_rhs(dtype):
+    """Test that a 0xn rhs can be solved."""
+    a = np.random.randn(10, 10).astype(dtype)
+    ctx = Context()
+    ctx.factor(a)
+    rhs = np.zeros((10, 0), dtype=dtype)
+    assert_almost_equal(dtype, ctx.solve(rhs), rhs)
