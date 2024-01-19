@@ -23,7 +23,10 @@ __all__ = [
 
 
 def test(verbose=True):
-    from pytest import main
+    try:
+        from pytest import main
+    except ImportError:
+        raise RuntimeError("pytest is required to run the tests")
     import os.path
 
     return main(
