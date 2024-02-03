@@ -16,6 +16,7 @@ __all__ = [
     "AnalysisStatistics",
     "FactorizationStatistics",
     "MUMPSError",
+    "orderings",
 ]
 
 import time

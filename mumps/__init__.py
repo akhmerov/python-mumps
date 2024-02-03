@@ -6,6 +6,7 @@ from .mumps import (
     schur_complement,
     nullspace,
     possible_orderings,
+    orderings,
 )
 from ._version import __version__
 
@@ -17,6 +18,7 @@ __all__ = [
     "schur_complement",
     "nullspace",
     "possible_orderings",
+    "orderings",
     "__version__",
     "test",
 ]
