@@ -16,10 +16,12 @@ __all__ = [
     "AnalysisStatistics",
     "FactorizationStatistics",
     "MUMPSError",
-    "orderings",
+    "Orderings",
 ]
 
 import time
+from enum import IntEnum
+
 import numpy as np
 import scipy.sparse
 import scipy.linalg as la
@@ -27,15 +29,16 @@ import scipy.linalg as la
 from mumps import _mumps
 from mumps.fortran_helpers import prepare_for_fortran
 
-orderings = {
-    "amd": 0,
-    "amf": 2,
-    "scotch": 3,
-    "pord": 4,
-    "metis": 5,
-    "qamd": 6,
-    "auto": 7,
-}
+
+class Orderings(IntEnum):
+    AMD = 0
+    AMF = 2
+    SCOTCH = 3
+    PORD = 4
+    METIS = 5
+    QAMD = 6
+    AUTO = 7
+
 
 ordering_name = [
     "amd",
@@ -68,8 +71,10 @@ def possible_orderings():
         # Try all orderings on a small test matrix, and check which one was
         # actually used.
 
-        possible_orderings.cached = ["auto"]
-        for ordering in [0, 2, 3, 4, 5, 6]:
+        possible_orderings.cached = Orderings.AUTO
+        for ordering in Orderings:
+            if ordering == Orderings.AUTO:
+                continue
             data = np.asfortranarray([1, 1], dtype=np.complex128)
             row = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
             col = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
@@ -81,7 +86,7 @@ def possible_orderings():
             instance.call()
 
             if instance.infog[7] == ordering:
-                possible_orderings.cached.append(ordering_name[ordering])
+                possible_orderings.cached.append(ordering)
 
     return possible_orderings.cached
 
@@ -310,7 +315,7 @@ class Context:
         self.data = data
         self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
 
-    def analyze(self, a=None, ordering="auto", overwrite_a=False):
+    def analyze(self, a=None, ordering=Orderings.AUTO, overwrite_a=False):
         """Perform analysis step of MUMPS.
 
         In the analysis step, MUMPS figures out a reordering for the matrix and
@@ -327,20 +332,20 @@ class Context:
             input matrix. Internally, the matrix is converted to `coo` format
             (so passing this format is best for performance). If `a` is not
             given, the matrix passed to `set_matrix` is used.
-        ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
+        ordering : Ordering
             ordering to use in the factorization. The availability of a
             particular ordering depends on the MUMPS installation.  Default is
-            'auto'.
+            Orderings.AUTO.
         overwrite_a : True or False
             whether the data in a may be overwritten, which can lead to a small
             performance gain. Default is False.
         """
-        if ordering not in orderings.keys():
+        if ordering not in Orderings:
             raise ValueError("Unknown ordering '" + ordering + "'!")
 
         if a is not None:
             self.set_matrix(a, overwrite_a)
-        self.mumps_instance.icntl[7] = orderings[ordering]
+        self.mumps_instance.icntl[7] = ordering
         self.mumps_instance.job = 1
         t = self.call()
         self.factored = False
@@ -349,7 +354,7 @@ class Context:
     def factor(
         self,
         a=None,
-        ordering="auto",
+        ordering=Orderings.AUTO,
         ooc=False,
         pivot_tol=0.01,
         reuse_analysis=False,
@@ -506,7 +511,7 @@ class Context:
 def schur_complement(
     a,
     indices,
-    ordering="auto",
+    ordering=Orderings.AUTO,
     ooc=False,
     pivot_tol=0.01,
     calc_stats=False,
@@ -602,8 +607,8 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
     with Context() as ctx:
         ctx.set_matrix(a, symmetric=symmetric)
 
-        ordering = "auto"
-        ctx.mumps_instance.icntl[7] = orderings[ordering]
+        ordering = Orderings.AUTO
+        ctx.mumps_instance.icntl[7] = ordering
         ctx.mumps_instance.icntl[24] = 1
         ctx.mumps_instance.cntl[3] = pivot_threshold
         ctx.mumps_instance.job = 4
