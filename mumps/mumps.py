@@ -115,24 +115,15 @@ class AnalysisStatistics:
 
     def __str__(self):
         parts = [
-            "estimated memory for in-core factorization:",
-            str(self.est_mem_incore),
-            "mbytes\n",
-            "estimated memory for out-of-core factorization:",
-            str(self.est_mem_ooc),
-            "mbytes\n",
-            "estimated number of nonzeros in factors:",
-            str(self.est_nonzeros),
-            "\n",
-            "estimated number of flops:",
-            str(self.est_flops),
-            "\n",
-            "ordering used:",
-            self.ordering,
+            f"estimated memory of in-core factorization: {self.est_mem_incore} mbytes",
+            f"estimated memory of out-of-core factorization: {self.est_mem_ooc} mbytes",
+            f"estimated number of nonzeros in factors: {self.est_nonzeros}",
+            f"estimated number of flops: {self.est_flops}",
+            f"ordering used: {repr(self.ordering)}",
         ]
         if hasattr(self, "time"):
-            parts.extend(["\n analysis time:", str(self.time), "secs"])
-        return " ".join(parts)
+            parts.extend([f"analysis time: {self.time} secs"])
+        return "\n".join(parts)
 
 
 class FactorizationStatistics:
@@ -157,33 +148,22 @@ class FactorizationStatistics:
 
     def __str__(self):
         parts = [
-            "off-diagonal pivots:",
-            str(self.offdiag_pivots),
-            "\n",
-            "delayed pivots:",
-            str(self.delayed_pivots),
-            "\n",
-            "tiny pivots:",
-            str(self.tiny_pivots),
-            "\n",
+            f"off-diagonal pivots: {self.offdiag_pivots}",
+            f"delayed pivots: {self.delayed_pivots}",
+            f"tiny pivots: {self.tiny_pivots}",
         ]
         if hasattr(self, "ordering"):
-            parts.extend(["ordering used:", self.ordering, "\n"])
+            parts.extend([f"ordering used: {repr(self.ordering)}"])
         parts.extend(
             [
-                "memory used during factorization:",
-                str(self.memory),
-                "mbytes\n",
-                "nonzeros in factored matrix:",
-                str(self.nonzeros),
-                "\n",
-                "floating point operations:",
-                str(self.flops),
+                f"memory used during factorization: {self.memory} mbytes",
+                f"nonzeros in factored matrix: {self.nonzeros}",
+                f"floating point operations: {self.flops}",
             ]
         )
         if hasattr(self, "time"):
-            parts.extend(["\n factorization time:", str(self.time), "secs"])
-        return " ".join(parts)
+            parts.extend([f"factorization time: {self.time} secs"])
+        return "\n".join(parts)
 
 
 class Context:
