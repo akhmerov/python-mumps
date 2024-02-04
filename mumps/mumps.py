@@ -21,6 +21,7 @@ __all__ = [
 
 import time
 from enum import IntEnum
+from functools import cache
 
 import numpy as np
 import scipy.sparse
@@ -51,6 +52,7 @@ ordering_name = [
 ]
 
 
+@cache
 def possible_orderings():
     """Return the ordering options that are available in the current
     installation of MUMPS.
@@ -67,28 +69,24 @@ def possible_orderings():
        of MUMPS.
     """
 
-    if not possible_orderings.cached:
-        # Try all orderings on a small test matrix, and check which one was
-        # actually used.
+    possible_orderings = [Orderings.AUTO]
+    for ordering in Orderings:
+        if ordering == Orderings.AUTO:
+            continue
+        data = np.asfortranarray([1, 1], dtype=np.complex128)
+        row = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
+        col = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
 
-        possible_orderings.cached = Orderings.AUTO
-        for ordering in Orderings:
-            if ordering == Orderings.AUTO:
-                continue
-            data = np.asfortranarray([1, 1], dtype=np.complex128)
-            row = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
-            col = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
+        instance = _mumps.zmumps()
+        instance.set_assembled_matrix(2, row, col, data)
+        instance.icntl[7] = ordering
+        instance.job = 1
+        instance.call()
 
-            instance = _mumps.zmumps()
-            instance.set_assembled_matrix(2, row, col, data)
-            instance.icntl[7] = ordering
-            instance.job = 1
-            instance.call()
+        if instance.infog[7] == ordering:
+            possible_orderings.append(ordering)
 
-            if instance.infog[7] == ordering:
-                possible_orderings.cached.append(ordering)
-
-    return possible_orderings.cached
+    return possible_orderings
 
 
 possible_orderings.cached = None

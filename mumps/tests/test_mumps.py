@@ -12,6 +12,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.linalg as la
 
+import mumps
 from mumps import Context, MUMPSError, schur_complement, nullspace
 from ._test_utils import _Random
 
@@ -195,3 +196,9 @@ def test_zero_size_rhs(dtype):
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
     assert_almost_equal(dtype, ctx.solve(rhs), rhs)
+
+
+def test_possible_orderings():
+    orderings = mumps.possible_orderings()
+    assert isinstance(orderings, list)
+    assert all(isinstance(ordering, mumps.Orderings) for ordering in orderings)
