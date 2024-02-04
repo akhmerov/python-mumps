@@ -42,3 +42,6 @@ docs/_build/
 
 # Editors
 .vscode/
+
+# Temporary file from userguide processing
+userguide*.txt

@@ -14,6 +14,7 @@ import scipy.linalg as la
 
 import mumps
 from mumps import Context, MUMPSError, schur_complement, nullspace
+from mumps.constants import ICNTL, Jobs
 from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
@@ -91,9 +92,10 @@ def test_error_minus_19(dtype):
 
     # We ensure that this first call creates a -19 error by
     # allocating only 1 MB for factorization
-    ctx.mumps_instance.icntl[23] = 1  # Memory upper bound set to 1MB
-    ctx.mumps_instance.icntl[14] = 1  # Initial memory relaxation to 1%
-    ctx.mumps_instance.job = 2
+    ctx.mumps_instance.icntl[ICNTL.WORKING_MEMORY_SIZE_MB] = 1
+    # Initial memory relaxation to 1%
+    ctx.mumps_instance.icntl[ICNTL.WORKING_SPACE_PERCENTAGE] = 1
+    ctx.mumps_instance.job = Jobs.FACTORIZE
     ctx.mumps_instance.call()
     # ensure that we really don't have enough memory
     assert ctx.mumps_instance.infog[1] == -19
