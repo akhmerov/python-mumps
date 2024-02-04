@@ -33,23 +33,13 @@ from mumps.fortran_helpers import prepare_for_fortran
 
 class Orderings(IntEnum):
     AMD = 0
+    USER_DEFINED = 1
     AMF = 2
     SCOTCH = 3
     PORD = 4
     METIS = 5
     QAMD = 6
     AUTO = 7
-
-
-ordering_name = [
-    "amd",
-    "user-defined",
-    "amf",
-    "scotch",
-    "pord",
-    "metis",
-    "qamd",
-]
 
 
 @cache
@@ -69,9 +59,9 @@ def possible_orderings():
        of MUMPS.
     """
 
-    possible_orderings = [Orderings.AUTO]
+    possible_orderings = [Orderings.AUTO, Orderings.USER_DEFINED]
     for ordering in Orderings:
-        if ordering == Orderings.AUTO:
+        if ordering in possible_orderings:
             continue
         data = np.asfortranarray([1, 1], dtype=np.complex128)
         row = np.asfortranarray([1, 2], dtype=_mumps.int_dtype)
@@ -87,9 +77,6 @@ def possible_orderings():
             possible_orderings.append(ordering)
 
     return possible_orderings
-
-
-possible_orderings.cached = None
 
 
 error_messages = {
@@ -123,7 +110,7 @@ class AnalysisStatistics:
             inst.infog[20] if inst.infog[20] > 0 else -inst.infog[20] * 1000000
         )
         self.est_flops = inst.rinfog[1]
-        self.ordering = ordering_name[inst.infog[7]]
+        self.ordering = Orderings(inst.infog[7])
         self.time = time
 
     def __str__(self):
@@ -157,7 +144,7 @@ class FactorizationStatistics:
 
         # possibly include ordering (used in schur_complement)
         if include_ordering:
-            self.ordering = ordering_name[inst.infog[7]]
+            self.ordering = Orderings(inst.infog[7])
 
         # information about runtime efficiency
         self.memory = inst.infog[22]

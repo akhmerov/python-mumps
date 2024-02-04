@@ -202,3 +202,9 @@ def test_possible_orderings():
     orderings = mumps.possible_orderings()
     assert isinstance(orderings, list)
     assert all(isinstance(ordering, mumps.Orderings) for ordering in orderings)
+    for required in (
+        mumps.Orderings.METIS,
+        mumps.Orderings.PORD,
+        mumps.Orderings.SCOTCH,
+    ):
+        assert required in orderings, f"{repr(required)} not in {orderings}"
