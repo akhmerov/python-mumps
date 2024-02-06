@@ -86,3 +86,8 @@ clipboard.copy(
 )
 
 # %%
+
+# Read actual parameter descriptions.
+full_specs = re.split(r"\nICNTL\([-\d]+\)", control_params)[1:]
+full_specs = [spec for spec in full_specs if not any(desc in spec for desc in exclude)]
+# %%
