@@ -209,7 +209,7 @@ class Context:
 
     def __setattr__(self, name, value):
         if name in ICNTL.__members__:
-            self.mumps_instance.icntl[getattr(ICNTL, name)] = value
+            self.mumps_instance.icntl[ICNTL[name]] = value
         else:
             super().__setattr__(name, value)
 
