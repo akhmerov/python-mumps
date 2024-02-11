@@ -88,6 +88,43 @@ clipboard.copy(
 # %%
 
 # Read actual parameter descriptions.
-full_specs = re.split(r"\nICNTL\([-\d]+\)", control_params)[1:]
-full_specs = [spec for spec in full_specs if not any(desc in spec for desc in exclude)]
+full_specs = re.split(r"\nICNTL\(([-\d]+)\)", control_params)[1:]
+# Zip together
+full_specs = zip(full_specs[::2], full_specs[1::2])
+# Skip unused parameters
+full_specs = [
+    spec for spec in full_specs if not any(desc in spec[1] for desc in exclude)
+]
+full_specs = {int(param): {"desc": spec.strip()} for param, spec in full_specs}
+# Extract possible values. These come after "Possible values:" and typically
+# end before "Other values" or "Default value".
+
+# The regex below is tested to be good enough to capture all enumerated options.
+possible_values_regex = re.compile(
+    r"^\s*Possible values\s*?:\s?^(.*)?^\s*?"
+    r"(Other values|Default value|Values different)",
+    re.DOTALL | re.MULTILINE,
+)
+
+# Within each list of possible values, we want to capture the values and their
+# descriptions. These follow a pattern <value>: <description>. Values are not
+# always specified as integers, which makes parsing complicated. Sometimes it's
+# an letter or an enumeration.
+value_regex = re.compile(r"^\s*(.{1,7})\s?:", re.MULTILINE)
+
+for param, spec in full_specs.items():
+    match = possible_values_regex.search(spec["desc"])
+    if match:
+        values_and_descriptions = re.split(value_regex, match.group(1))[1:]
+        values = {
+            value: desc
+            for value, desc in zip(
+                values_and_descriptions[::2], values_and_descriptions[1::2]
+            )
+        }
+        spec["values"] = values
+    else:
+        print("Possible values not found for", param)
+        spec["values"] = None
+
 # %%
