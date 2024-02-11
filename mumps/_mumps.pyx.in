@@ -92,7 +92,7 @@ cdef class {{p.lower()}}mumps:
     def __init__(self, verbose=False, sym=0):
         self.params.job = -1
         self.params.sym = sym
-        self.params.par = 1
+        self.params.par = 1  # Required for sequential version, docs #3.11
         self.params.comm_fortran = -987654  # MPI_COMM_WORLD, according to docs
 
         mumps.{{p.lower()}}mumps_c(&self.params)
