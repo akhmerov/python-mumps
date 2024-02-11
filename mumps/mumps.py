@@ -207,6 +207,15 @@ class Context:
         self.mumps_instance = None
         return False
 
+    def __getattr__(self, name):
+        return self.mumps_instance.icntl[getattr(ICNTL, name)]
+
+    def __setattr__(self, name, value):
+        if name in ICNTL.__members__:
+            self.mumps_instance.icntl[getattr(ICNTL, name)] = value
+        else:
+            super().__setattr__(name, value)
+
     def call(self):
         """Execute the MUMPS subroutine.
 
@@ -296,7 +305,7 @@ class Context:
 
         if a is not None:
             self.set_matrix(a, overwrite_a)
-        self.mumps_instance.icntl[ICNTL.ORDERING] = ordering
+        self.ORDERING = ordering
         self.mumps_instance.job = Jobs.ANALYZE
         t = self.call()
         self.factored = False
@@ -355,7 +364,7 @@ class Context:
         if not reuse_analysis:
             self.analyze(ordering=ordering, overwrite_a=overwrite_a)
 
-        self.mumps_instance.icntl[ICNTL.OUT_OF_CORE] = 1 if ooc else 0
+        self.OUT_OF_CORE = 1 if ooc else 0
         self.mumps_instance.job = Jobs.FACTORIZE
         self.mumps_instance.cntl[1] = pivot_tol
 
@@ -367,7 +376,7 @@ class Context:
                 # specially, by increasing the memory relaxation parameter
                 if self.mumps_instance.infog[1] in (-8, -9):
                     # Double the memory relaxation parameter
-                    self.mumps_instance.icntl[ICNTL.WORKING_SPACE_PERCENTAGE] *= 2
+                    self.WORKING_SPACE_PERCENTAGE *= 2
                 else:
                     raise
             else:
@@ -395,7 +404,7 @@ class Context:
         self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
         self.mumps_instance.set_dense_rhs(x)
         self.mumps_instance.job = Jobs.SOLVE
-        self.mumps_instance.icntl[ICNTL.RHS_FORMAT] = 1
+        self.RHS_FORMAT = 1
         self.call()
 
         return x
@@ -513,8 +522,8 @@ def schur_complement(
 
     with Context() as ctx:
         ctx.set_matrix(a, overwrite_a=overwrite_a)
-        ctx.mumps_instance.icntl[ICNTL.SCHUR_COMPLEMENT] = 1
-        ctx.mumps_instance.icntl[ICNTL.SCHUR_SOLUTION_TYPE] = 1
+        ctx.SCHUR_COMPLEMENT = 1
+        ctx.SCHUR_SOLUTION_TYPE = 1
         ctx.mumps_instance.set_schur(schur_compl, indices)
         ctx.analyze(ordering=ordering)
         # Job = Schur, discard factors
@@ -559,8 +568,8 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         ctx.set_matrix(a, symmetric=symmetric)
 
         ordering = Orderings.AUTO
-        ctx.mumps_instance.icntl[ICNTL.ORDERING] = ordering
-        ctx.mumps_instance.icntl[ICNTL.DETECT_NULL_PIVOTS] = 1
+        ctx.ORDERING = ordering
+        ctx.DETECT_NULL_PIVOTS = 1
         ctx.mumps_instance.cntl[3] = pivot_threshold
         ctx.mumps_instance.job = Jobs.ANALYZE_FACTORIZE
 
@@ -578,7 +587,7 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         ctx.mumps_instance.set_dense_rhs(nullspace)
         ctx.mumps_instance.job = Jobs.SOLVE
         # Return all null space basis vectors, overwriting RHS
-        ctx.mumps_instance.icntl[ICNTL.DEFICIENT_MATRIX] = -1
+        ctx.DEFICIENT_MATRIX = -1
         ctx.call()
 
     # Orthonormalize
