@@ -156,10 +156,7 @@ class FactorizationStatistics:
 
 
 class Context:
-    """Context contains the internal data structures needed by the
-    MUMPS library and contains a user-friendly interface.
-
-    WARNING: Only complex numbers supported.
+    """The high level interface to MUMPS direct sparse solver.
 
     Examples
     --------
