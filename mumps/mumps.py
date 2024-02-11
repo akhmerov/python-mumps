@@ -204,9 +204,6 @@ class Context:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        # Force MUMPS to deallocate memory
-        self.job = Jobs.TERMINATE
-        self.call()
         self.mumps_instance = None
         return False
 
