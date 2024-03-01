@@ -195,3 +195,18 @@ def test_zero_size_rhs(dtype):
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
     assert_almost_equal(dtype, ctx.solve(rhs), rhs)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_symmetric_matrix(dtype):
+    """Test that a symmetric matrix can be solved."""
+    n = 10
+    a = np.random.randn(n, n).astype(dtype)
+    if np.iscomplexobj(a):
+        a += (1j * np.random.randn(n, n)).astype(dtype)
+    a += a.T
+    ctx = Context()
+    ctx.set_matrix(a, symmetric=True)
+    ctx.factor()
+    rhs = np.random.randn(n, 1).astype(dtype)
+    assert_almost_equal(dtype, ctx.solve(rhs), la.solve(a, rhs))
