@@ -208,7 +208,7 @@ class Context:
     Solving a small system of equations.
 
     >>> import scipy.sparse as sp
-    >>> a = sp.coo_matrix([[1., 0], [0, 2.]], dtype=complex)
+    >>> a = sp.coo_array([[1., 0], [0, 2.]], dtype=complex)
     >>> ctx = mumps.Context()
     >>> ctx.factor(a)
     >>> ctx.solve([1., 1.])
@@ -280,7 +280,7 @@ class Context:
 
         Parameters
         ----------
-        a : sparse SciPy matrix
+        a : sparse SciPy array
             input matrix. Internally, the matrix is converted to `coo` format
             (so passing this format is best for performance).
         overwrite_a : True or False
@@ -289,8 +289,12 @@ class Context:
         symmetric: True or False
             whether the matrix is symmetric. Default is False. If True, only
             the upper triangular part of the matrix is used.
+
+        Note:
+        -----
+        On complex matrices ``symmetric=True`` means symmetric and not Hermitian.
         """
-        a = scipy.sparse.coo_matrix(a)
+        a = scipy.sparse.coo_array(a)
         if symmetric:
             a = scipy.sparse.triu(a)
 
