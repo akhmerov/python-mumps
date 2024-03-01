@@ -361,7 +361,7 @@ class Context:
         if not reuse_analysis:
             self.analyze(ordering=ordering, overwrite_a=overwrite_a)
 
-        self.OUT_OF_CORE = 1 if ooc else 0
+        self.OUT_OF_CORE = ICNTL.OUT_OF_CORE.values(ooc)
         self.mumps_instance.job = Jobs.FACTORIZE
         self.mumps_instance.cntl[1] = pivot_tol
 
@@ -401,7 +401,7 @@ class Context:
         self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
         self.mumps_instance.set_dense_rhs(x)
         self.mumps_instance.job = Jobs.SOLVE
-        self.RHS_FORMAT = 1
+        self.RHS_FORMAT = ICNTL.RHS_FORMAT.values.SPARSE_AUTO
         self.call()
 
         return x
@@ -519,8 +519,9 @@ def schur_complement(
 
     with Context() as ctx:
         ctx.set_matrix(a, overwrite_a=overwrite_a)
-        ctx.SCHUR_COMPLEMENT = 1
-        ctx.SCHUR_SOLUTION_TYPE = 1
+        ctx.SCHUR_COMPLEMENT = ICNTL.SCHUR_COMPLEMENT.values.CENTRALIZED
+        ctx.SCHUR_SOLUTION_TYPE = ICNTL.SCHUR_SOLUTION_TYPE.values.CONDENSE
+        ctx.DISCARD_FACTORS = ICNTL.DISCARD_FACTORS.values.DISCARD_ALL
         ctx.mumps_instance.set_schur(schur_compl, indices)
         ctx.analyze(ordering=ordering)
         # Job = Schur, discard factors
@@ -566,7 +567,7 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
 
         ordering = Orderings.AUTO
         ctx.ORDERING = ordering
-        ctx.DETECT_NULL_PIVOTS = 1
+        ctx.DETECT_NULL_PIVOTS = ICNTL.DETECT_NULL_PIVOTS.values.DETECT
         ctx.mumps_instance.cntl[3] = pivot_threshold
         ctx.mumps_instance.job = Jobs.ANALYZE_FACTORIZE
 

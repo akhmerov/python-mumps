@@ -2,12 +2,12 @@ from enum import Enum
 
 
 class IntEnum(int, Enum):
-    def __new__(cls, value, description=None, validator=None):
-        """IntEnum with description and validator values which can be Enum."""
+    def __new__(cls, value, description=None, values=None):
+        """IntEnum with description and values which can be Enum."""
         obj = int.__new__(cls, value)
         obj._value_ = value
         obj.description = description
-        obj.validator = validator
+        obj.values = values
         return obj
 
 
@@ -263,10 +263,10 @@ class OutOfCore(IntEnum):
 
 
 class DetectNullPivots(IntEnum):
-    NO_DETECTION = 0, (
+    DONT_DETECT = 0, (
         "Nothing done. A null pivot row will result in error INFO(1)=-10."
     )
-    DETECTION = 1, "Null pivot row detection."
+    DETECT = 1, "Null pivot row detection."
 
 
 class SchurSolutionType(IntEnum):
