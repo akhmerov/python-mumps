@@ -111,10 +111,12 @@ cdef class {{p.lower()}}mumps:
 
     def __dealloc__(self):
         self.params.job = -2
-        mumps.{{p.lower()}}mumps_c(&self.params)
+        with nogil:
+            mumps.{{p.lower()}}mumps_c(&self.params)
 
     def call(self):
-        mumps.{{p.lower()}}mumps_c(&self.params)
+        with nogil:
+            mumps.{{p.lower()}}mumps_c(&self.params)
 
     def _set_job(self, value):
         self.params.job = value
