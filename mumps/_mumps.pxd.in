@@ -8,7 +8,7 @@
 # https://gitlab.kwant-project.org/kwant/python-mumps.
 """Cython declarations for the C interface to Mumps."""
 
-cdef extern from "mumps_c_types.h":
+cdef extern from "mumps_c_types.h" nogil:
     ctypedef int MUMPS_INT
 
     ctypedef float SMUMPS_REAL
@@ -31,7 +31,7 @@ cdef extern from "mumps_c_types.h":
 
 {{for p in 'SDCZ'}}
 
-cdef extern from "{{p.lower()}}mumps_c.h":
+cdef extern from "{{p.lower()}}mumps_c.h" nogil:
     ctypedef struct {{p}}MUMPS_STRUC_C:
         MUMPS_INT sym, par, job
         MUMPS_INT comm_fortran

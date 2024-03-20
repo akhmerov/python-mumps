@@ -21,6 +21,14 @@ import numpy as np
 from mumps cimport _mumps as mumps
 from mumps.fortran_helpers import assert_fortran_matvec, assert_fortran_mat
 
+from cpython.pythread cimport (
+    PyThread_type_lock,
+    PyThread_allocate_lock,
+    PyThread_acquire_lock,
+    PyThread_release_lock,
+    PyThread_free_lock
+)
+
 int_dtype = np.int32
 
 ctypedef np.float32_t SMUMPS_COMPLEX_NPT
@@ -89,13 +97,18 @@ cdef class {{p.lower()}}mumps:
     cdef public {{p.lower()}}mumps_real_array rinfo
     cdef public {{p.lower()}}mumps_real_array rinfog
 
-    def __init__(self, verbose=False, sym=0):
+    cdef PyThread_type_lock lock
+
+    def __cinit__(self, verbose=False, sym=0):
+        self.lock = PyThread_allocate_lock()
+
         self.params.job = -1
         self.params.sym = sym
         self.params.par = 1
         self.params.comm_fortran = -987654  # MPI_COMM_WORLD, according to docs
 
-        mumps.{{p.lower()}}mumps_c(&self.params)
+        with nogil:
+            mumps.{{p.lower()}}mumps_c(&self.params)
 
         self.icntl = make_mumps_int_array(self.params.icntl)
         self.cntl = make_{{p.lower()}}mumps_real_array(self.params.cntl)
@@ -104,17 +117,25 @@ cdef class {{p.lower()}}mumps:
         self.rinfo = make_{{p.lower()}}mumps_real_array(self.params.rinfo)
         self.rinfog = make_{{p.lower()}}mumps_real_array(self.params.rinfog)
 
+    def __init__(self, verbose=False, sym=0):
         # no diagnostic output (MUMPS is very verbose normally)
         if not verbose:
             self.icntl[1] = 0
             self.icntl[3] = 0
 
     def __dealloc__(self):
-        self.params.job = -2
-        mumps.{{p.lower()}}mumps_c(&self.params)
+        if self.lock:  # guard to ensure __dealloc__ operations are not called multiple times
+            self.params.job = -2
+            with nogil:
+                mumps.{{p.lower()}}mumps_c(&self.params)
+            PyThread_free_lock(self.lock)
+            self.lock = NULL
 
     def call(self):
-        mumps.{{p.lower()}}mumps_c(&self.params)
+        with nogil:
+            PyThread_acquire_lock(self.lock, 1)
+            mumps.{{p.lower()}}mumps_c(&self.params)
+            PyThread_release_lock(self.lock)
 
     def _set_job(self, value):
         self.params.job = value
