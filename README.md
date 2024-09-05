@@ -59,16 +59,28 @@ def sparse_diag(matrix, k, sigma, **kwargs):
 
 ## Development
 
-`python-mumps` recommends [Spin](https://github.com/scientific-python/spin/). Get spin with:
+### Pixi
+
+`python-mumps` recommends [pixi](https://pixi.sh/).
+
+After installing pixi, use
 
 ```bash
-pip install spin
+pixi run test -v  # (Pytest arguments go after test)
 ```
 
-Then to build, test and install `python-mumps`:
+This will also install the necessary dependencies.
+
+### pre-commit
+
+`python-mumps` uses [pre-commit](https://pre-commit.com/) to enforce code style. After installing it, run
 
 ```bash
-spin build
-spin test -- --lf  # (Pytest arguments go after --)
-spin install
+pre-commit install
+```
+
+or if you want to use pre-commit provided by pixi, run
+
+```bash
+pixi run pre-commit install
 ```
