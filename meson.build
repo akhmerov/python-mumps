@@ -36,7 +36,8 @@ else
     _incdir_numpy_abs = incdir_numpy
 endif
 inc_np = include_directories(incdir_numpy)
-np_dep = declare_dependency(include_directories: inc_np)
+numpy_nodepr_api = ['-DNPY_NO_DEPRECATED_API=NPY_1_9_API_VERSION']
+np_dep = declare_dependency(include_directories: inc_np, compile_args: numpy_nodepr_api)
 mumps_names = get_option('mumps_names')
 
 mumps_libs = []
