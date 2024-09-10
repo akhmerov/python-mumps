@@ -85,10 +85,9 @@ ipykernel = ">=6.29.0"
 no-build-isolation = ["python-mumps"]
 
 [tool.pixi.environments]
-default = { solve-group = "default" }
+default = { features = ["develop", "publish", "precommit"],  solve-group = "default" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"] }
-develop = { features = ["develop", "publish", "precommit"] }
 
 [tool.pixi.tasks]
 test = { cmd = "python -P -m pytest --import-mode=importlib --pyargs mumps", clean-env = true }
