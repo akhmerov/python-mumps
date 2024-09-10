@@ -23,6 +23,7 @@ test:
     key: "$CI_JOB_NAME"
     paths:
       - .pixi
+      - build
 
 build:
   script:
