@@ -78,6 +78,9 @@ twine = ">=5.1.1"
 pre-commit = "*"
 git = "*"
 
+[tool.pixi.feature.develop.dependencies]
+ipykernel = ">=6.29.0"
+
 [tool.pixi.pypi-options]
 no-build-isolation = ["python-mumps"]
 
@@ -85,9 +88,10 @@ no-build-isolation = ["python-mumps"]
 default = { solve-group = "default" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"] }
+develop = { features = ["develop", "publish", "precommit"] }
 
 [tool.pixi.tasks]
-test = "python -P -m pytest --import-mode=importlib --pyargs mumps"
+test = { cmd = "python -P -m pytest --import-mode=importlib --pyargs mumps", clean-env = true }
 
 [tool.pixi.feature.precommit.tasks]
 check = "pre-commit run --all-files"
