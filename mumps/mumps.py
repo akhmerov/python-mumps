@@ -510,8 +510,7 @@ class Context:
 
 class SchurContext(Context):
     def get_schur(self, indices, a=None, ordering='auto', ooc=False,
-                  pivot_tol=0.01, calc_stats=False, overwrite_a=False,
-                  discard_factors=False):
+                  pivot_tol=0.01, overwrite_a=False, discard_factors=False):
 
         if a is not None:
             self.set_matrix(a, overwrite_a)
