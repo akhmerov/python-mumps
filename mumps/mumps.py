@@ -507,6 +507,83 @@ class Context:
             return self._solve_dense(b, overwrite_b)
 
 
+class SchurContext(Context):
+    def get_schur(self, indices, a=None, ordering='auto', ooc=False,
+                  pivot_tol=0.01, calc_stats=False, overwrite_a=False,
+                  discard_factors=False):
+
+        if a is not None:
+            self.set_matrix(a, overwrite_a)
+
+        indices = np.asanyarray(indices)
+        if indices.ndim != 1:
+            raise ValueError("Schur indices must be specified in a 1d array!")
+        self.indicies = indices = _makemumps_index_array(indices)
+        schur_compl = np.empty((indices.size, indices.size), order="C",
+                               dtype=self.data.dtype)
+
+        self.mumps_instance.icntl[19] = 1
+        self.mumps_instance.set_schur(schur_compl, indices)
+
+        self.mumps_instance.icntl[31] = 1 if discard_factors else 0
+
+        self.analyze(ordering=ordering)
+        self.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
+
+        self.schur_compl = schur_compl
+
+        return schur_compl
+
+    def solve(self, b, overwrite_b=False):
+        import scipy.linalg as sla
+
+        if not self.factored:
+            raise RuntimeError("Factorization must be done before solving!")
+
+        if b.shape[0] != self.n:
+            raise ValueError("Right hand side has wrong size")
+
+        dtype = self.data.dtype
+
+        if self.dtype != dtype:
+            raise ValueError(
+                "Data type of right hand side is not "
+                "compatible with the dtype of the "
+                "linear system"
+            )
+
+        schur_rhs = np.empty((self.indicies.size,), dtype=dtype)
+        self.mumps_instance.set_schur_rhs(schur_rhs)
+
+        if scipy.sparse.isspmatrix(b):
+            b = b.tocsc()
+            x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
+            _, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
+
+            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
+            self.mumps_instance.set_dense_rhs(x)
+            self.mumps_instance.icntl[20] = 1
+
+        else:
+            _, b = prepare_for_fortran(overwrite_b, b,
+                                       np.zeros(1, dtype=dtype))[:2]
+            self.mumps_instance.set_dense_rhs(b)
+            x = b
+
+        self.mumps_instance.icntl[26] = 1  # Reduction/condensation phase
+        self.mumps_instance.job = 3
+        t = self.call()
+
+        x2 = sla.solve(self.schur_compl.T, schur_rhs)   # solve dense system
+
+        schur_rhs[:] = x2
+        self.mumps_instance.icntl[26] = 2  # Expansion phase
+        self.mumps_instance.job = 3
+        t = self.call()
+
+        return x
+
+
 def schur_complement(
     a,
     indices,
@@ -553,20 +630,10 @@ def schur_complement(
         statistics of the factorization as collected by MUMPS.  Only returned
         if ``calc_stats==True``.
     """
-    indices = np.asanyarray(indices)
-    if indices.ndim != 1:
-        raise ValueError("Schur indices must be specified in a 1d array!")
-    indices = _makemumps_index_array(indices)
-    schur_compl = np.empty((indices.size, indices.size), order="C", dtype=a.dtype)
-
-    with Context() as ctx:
-        ctx.set_matrix(a, overwrite_a=overwrite_a)
-        ctx.mumps_instance.icntl[19] = 1
-        ctx.mumps_instance.icntl[31] = 1
-        ctx.mumps_instance.set_schur(schur_compl, indices)
-        ctx.analyze(ordering=ordering)
-        # Job = Schur, discard factors
-        ctx.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
+    with SchurContext() as ctx:
+        schur_compl = ctx.get_schur(indices, a, ordering=ordering, ooc=ooc,
+                                    overwrite_a=overwrite_a,
+                                    pivot_tol=pivot_tol, discard_factors=True)
 
     if calc_stats:
         return [schur_compl, ctx.analysis_stats, ctx.factor_stats]
