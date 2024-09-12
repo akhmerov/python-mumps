@@ -509,9 +509,59 @@ class Context:
 
 
 class SchurContext(Context):
+    """SchurContext contains the internal data structures needed by the
+    MUMPS library and contains a user-friendly interface to Schur complement
+    computation.
+
+
+    Examples
+    --------
+
+    Solving a system of equations.
+
+    >>> import scipy.sparse as sp
+    >>> a = sp.coo_array([[1., 0], [0, 2.]], dtype=complex)
+    >>> ctx = mumps.Context()
+    >>> ctx.factor(a)
+    >>> ctx.solve([1., 1.])
+    array([ 1.0+0.j,  0.5+0.j])
+    """
     def get_schur(self, indices, a=None, ordering='auto', ooc=False,
                   pivot_tol=0.01, overwrite_a=False, discard_factors=False):
+        """Compute the Schur complement block of matrix a using MUMPS.
 
+        Parameters:
+        indices : 1d array
+            indices (row and column) of the desired Schur complement block.  (The
+            Schur complement block is square, so that the indices are both row and
+            column indices.)
+        a : sparse matrix
+            input matrix. Internally, the matrix is converted to `coo` format (so
+            passing this format is best for performance)
+        ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
+            ordering to use in the factorization. The availability of a particular
+            ordering depends on the MUMPS installation.  Default is 'auto'.
+        ooc : True or False
+            whether to use the out-of-core functionality of MUMPS.  (out-of-core
+            means that data is written to disk to reduce memory usage.) Default is
+            False.
+        pivot_tol: number in the range [0, 1]
+            pivoting threshold. Pivoting is typically limited in sparse solvers, as
+            too much pivoting destroys sparsity. 1.0 means full pivoting, whereas
+            0.0 means no pivoting. Default is 0.01.
+        overwrite_a : True or False
+            whether the data in a may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        discard_factors: True or False
+            whether to discard all matrix factors during factorization phase.
+            Default is False.
+
+        Returns
+        -------
+
+        schur_compl: NumPy array
+            Schur complement block
+        """
         if a is not None:
             self.set_matrix(a, overwrite_a)
 
@@ -535,6 +585,29 @@ class SchurContext(Context):
         return schur_compl
 
     def solve(self, b, overwrite_b=False):
+        """Solve a linear system using Schur complement method after the factorization
+        has previously been performed by `get_schur`.
+
+        Supports both dense and sparse right hand sides.
+
+        Parameters
+        ----------
+
+        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+            the right hand side to solve. Accepts both dense and sparse input;
+            if the input is sparse 'csc' format is used internally (so passing
+            a 'csc' matrix gives best performance).
+        overwrite_b : True or False
+            whether the data in b may be overwritten, which can lead to a small
+            performance gain. Default is False.
+
+        Returns
+        -------
+
+        x : NumPy array
+            the solution to the linear system as a dense matrix (a vector is
+            returned if b was a vector, otherwise a matrix is returned).
+        """
         import scipy.linalg as sla
 
         if not self.factored:
