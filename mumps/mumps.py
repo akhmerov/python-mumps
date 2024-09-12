@@ -11,6 +11,7 @@
 
 __all__ = [
     "Context",
+    "SchurContext",
     "schur_complement",
     "nullspace",
     "AnalysisStatistics",
