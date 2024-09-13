@@ -625,30 +625,30 @@ class SchurContext(Context):
 
         dtype = self.data.dtype
 
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
-            )
-
         schur_rhs = np.empty((self.indicies.size,), dtype=dtype)
         self.mumps_instance.set_schur_rhs(schur_rhs)
 
         if scipy.sparse.isspmatrix(b):
             b = b.tocsc()
             x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
-            _, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
+            dt, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
 
             self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
             self.mumps_instance.set_dense_rhs(x)
             self.mumps_instance.icntl[20] = 1
 
         else:
-            _, b = prepare_for_fortran(overwrite_b, b,
-                                       np.zeros(1, dtype=dtype))[:2]
+            dt, b = prepare_for_fortran(overwrite_b, b,
+                                        np.zeros(1, dtype=dtype))[:2]
             self.mumps_instance.set_dense_rhs(b)
             x = b
+
+        if self.dtype != dt:
+            raise ValueError(
+                "Data type of right hand side is not "
+                "compatible with the dtype of the "
+                "linear system"
+            )
 
         self.mumps_instance.icntl[26] = 1  # Reduction/condensation phase
         self.mumps_instance.job = 3
