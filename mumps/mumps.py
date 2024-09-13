@@ -519,12 +519,19 @@ class SchurContext(Context):
 
     Solving a system of equations.
 
+    >>> import mumps
+    >>> import numpy as np
     >>> import scipy.sparse as sp
-    >>> a = sp.coo_array([[1., 0], [0, 2.]], dtype=complex)
-    >>> ctx = mumps.Context()
-    >>> ctx.factor(a)
-    >>> ctx.solve([1., 1.])
-    array([ 1.0+0.j,  0.5+0.j])
+    >>> row = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3])
+    >>> col = np.array([0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 0, 1])
+    >>> val = np.array([1, 2, 2, 1, 1, 3, -1, 2, 1, 1, 3, 1], dtype='d')
+    >>> b = np.array([15, 12, 3, 5], dtype='d')
+    >>> schur_indices = np.array([2, 3])
+    >>> mtx = sp.coo_matrix((val, (row, col)), shape=(4, 4))
+    >>> ctx = mumps.SchurContext()
+    >>> ctx.get_schur(schur_indices, mtx)
+    >>> ctx.solve(b)
+    array([1., 2., 3., 4.])
     """
     def get_schur(self, indices, a=None, ordering='auto', ooc=False,
                   pivot_tol=0.01, overwrite_a=False, discard_factors=False):
@@ -647,7 +654,7 @@ class SchurContext(Context):
         self.mumps_instance.job = 3
         t = self.call()
 
-        x2 = sla.solve(self.schur_compl.T, schur_rhs)   # solve dense system
+        x2 = sla.solve(self.schur_compl, schur_rhs)  # solve dense system
 
         schur_rhs[:] = x2
         self.mumps_instance.icntl[26] = 2  # Expansion phase
