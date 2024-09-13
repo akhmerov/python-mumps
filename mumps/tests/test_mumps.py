@@ -12,7 +12,8 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.linalg as la
 
-from mumps import Context, MUMPSError, schur_complement, nullspace
+from mumps import (Context, SchurContext, MUMPSError, schur_complement,
+                   nullspace)
 from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
@@ -68,6 +69,22 @@ def test_schur_complement_with_dense(dtype, mat_size):
     a = rand.randmat(mat_size, mat_size, dtype)
     s = schur_complement(sp.coo_matrix(a), list(range(3)))
     assert_array_almost_equal(dtype, np.linalg.inv(s), np.linalg.inv(a)[:3, :3])
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.parametrize("mat_size", [5, 10], ids=str)
+def test_schur_complement_solution(dtype, mat_size):
+    rand = _Random()
+    a = rand.randmat(mat_size, mat_size, dtype)
+    bvec = rand.randvec(mat_size, dtype)
+
+    ctx = SchurContext()
+    ctx.set_matrix(a)
+    ctx.get_schur(range(3))
+
+    xvec = ctx.solve(bvec)
+
+    assert_array_almost_equal(dtype, a @ xvec, bvec)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
