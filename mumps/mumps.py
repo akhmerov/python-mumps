@@ -623,6 +623,9 @@ class SchurContext(Context):
         if b.shape[0] != self.n:
             raise ValueError("Right hand side has wrong size")
 
+        if len(b.shape) > 1 and b.shape[0] > 0:
+            raise ValueError("Right hand side must be a vector, not a matrix.")
+
         dtype = self.data.dtype
 
         schur_rhs = np.empty((self.indicies.size,), dtype=dtype)
