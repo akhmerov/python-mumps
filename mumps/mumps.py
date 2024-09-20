@@ -609,8 +609,6 @@ class Context:
         >>> ctx.solve_schur(b)
         array([1., 2., 3., 4.])
         """
-        import scipy.linalg as sla
-
         if self.schur_complement is None:
             raise RuntimeError(
                 "Factorization must be done by calling 'get_schur()' "
@@ -654,7 +652,7 @@ class Context:
         self.mumps_instance.job = 3
         t = self.call()
 
-        x2 = sla.solve(self.schur_complement, schur_rhs)  # solve dense system
+        x2 = la.solve(self.schur_complement, schur_rhs)  # solve dense system
 
         schur_rhs[:] = x2
         self.mumps_instance.icntl[26] = 2  # Expansion phase
