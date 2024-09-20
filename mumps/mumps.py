@@ -11,7 +11,6 @@
 
 __all__ = [
     "Context",
-    "SchurContext",
     "schur_complement",
     "nullspace",
     "AnalysisStatistics",
@@ -241,6 +240,8 @@ class Context:
         self.dtype = None
         self.verbose = verbose
         self.factored = False
+        self.schur_complement = None
+        self.schur_indicies = None
 
     def __enter__(self):
         return self
@@ -507,32 +508,6 @@ class Context:
         else:
             return self._solve_dense(b, overwrite_b)
 
-
-class SchurContext(Context):
-    """SchurContext contains the internal data structures needed by the
-    MUMPS library and contains a user-friendly interface to Schur complement
-    computation.
-
-
-    Examples
-    --------
-
-    Solving a system of equations.
-
-    >>> import mumps
-    >>> import numpy as np
-    >>> import scipy.sparse as sp
-    >>> row = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3])
-    >>> col = np.array([0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 0, 1])
-    >>> val = np.array([1, 2, 2, 1, 1, 3, -1, 2, 1, 1, 3, 1], dtype='d')
-    >>> b = np.array([15, 12, 3, 5], dtype='d')
-    >>> schur_indices = np.array([2, 3])
-    >>> mtx = sp.coo_matrix((val, (row, col)), shape=(4, 4))
-    >>> ctx = mumps.SchurContext()
-    >>> ctx.get_schur(schur_indices, mtx)
-    >>> ctx.solve(b)
-    array([1., 2., 3., 4.])
-    """
     def get_schur(self, indices, a=None, ordering='auto', ooc=False,
                   pivot_tol=0.01, overwrite_a=False, discard_factors=False):
         """Compute the Schur complement block of matrix a using MUMPS.
@@ -575,9 +550,9 @@ class SchurContext(Context):
         indices = np.asanyarray(indices)
         if indices.ndim != 1:
             raise ValueError("Schur indices must be specified in a 1d array!")
-        self.indicies = indices = _makemumps_index_array(indices)
+        self.schur_indicies = indices = _makemumps_index_array(indices)
         schur_compl = np.empty((indices.size, indices.size), order="C",
-                               dtype=self.data.dtype)
+                                    dtype=self.data.dtype)
 
         self.mumps_instance.icntl[19] = 1
         self.mumps_instance.set_schur(schur_compl, indices)
@@ -587,13 +562,13 @@ class SchurContext(Context):
         self.analyze(ordering=ordering)
         self.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
 
-        self.schur_compl = schur_compl
+        self.schur_complement = schur_compl
 
         return schur_compl
 
-    def solve(self, b, overwrite_b=False):
-        """Solve a linear system using Schur complement method after the factorization
-        has previously been performed by `get_schur`.
+    def solve_schur(self, b, overwrite_b=False):
+        """Solve a linear system using Schur complement method after the
+        factorization has previously been performed by `get_schur`.
 
         Supports both dense and sparse right hand sides.
 
@@ -614,11 +589,33 @@ class SchurContext(Context):
         x : NumPy array
             the solution to the linear system as a dense matrix (a vector is
             returned if b was a vector, otherwise a matrix is returned).
+
+        Example
+        -------
+
+        Solving a system of equations.
+
+        >>> import mumps
+        >>> import numpy as np
+        >>> import scipy.sparse as sp
+        >>> row = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3])
+        >>> col = np.array([0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 0, 1])
+        >>> val = np.array([1, 2, 2, 1, 1, 3, -1, 2, 1, 1, 3, 1], dtype='d')
+        >>> b = np.array([15, 12, 3, 5], dtype='d')
+        >>> schur_indices = np.array([2, 3])
+        >>> mtx = sp.coo_matrix((val, (row, col)), shape=(4, 4))
+        >>> ctx = mumps.Context()
+        >>> ctx.get_schur(schur_indices, mtx)
+        >>> ctx.solve_schur(b)
+        array([1., 2., 3., 4.])
         """
         import scipy.linalg as sla
 
-        if not self.factored:
-            raise RuntimeError("Factorization must be done before solving!")
+        if self.schur_complement is None:
+            raise RuntimeError(
+                "Factorization must be done by calling 'get_schur()' "
+                "before solving!"
+            )
 
         if b.shape[0] != self.n:
             raise ValueError("Right hand side has wrong size")
@@ -628,7 +625,7 @@ class SchurContext(Context):
 
         dtype = self.data.dtype
 
-        schur_rhs = np.empty((self.indicies.size,), dtype=dtype)
+        schur_rhs = np.empty((self.schur_indicies.size,), dtype=dtype)
         self.mumps_instance.set_schur_rhs(schur_rhs)
 
         if scipy.sparse.isspmatrix(b):
@@ -657,7 +654,7 @@ class SchurContext(Context):
         self.mumps_instance.job = 3
         t = self.call()
 
-        x2 = sla.solve(self.schur_compl, schur_rhs)  # solve dense system
+        x2 = sla.solve(self.schur_complement, schur_rhs)  # solve dense system
 
         schur_rhs[:] = x2
         self.mumps_instance.icntl[26] = 2  # Expansion phase
@@ -713,7 +710,7 @@ def schur_complement(
         statistics of the factorization as collected by MUMPS.  Only returned
         if ``calc_stats==True``.
     """
-    with SchurContext() as ctx:
+    with Context() as ctx:
         schur_compl = ctx.get_schur(indices, a, ordering=ordering, ooc=ooc,
                                     overwrite_a=overwrite_a,
                                     pivot_tol=pivot_tol, discard_factors=True)

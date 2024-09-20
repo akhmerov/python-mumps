@@ -1,6 +1,5 @@
 from .mumps import (
     Context,
-    SchurContext,
     MUMPSError,
     AnalysisStatistics,
     FactorizationStatistics,
@@ -13,7 +12,6 @@ from ._version import __version__
 
 __all__ = [
     "Context",
-    "SchurContext",
     "MUMPSError",
     "AnalysisStatistics",
     "FactorizationStatistics",

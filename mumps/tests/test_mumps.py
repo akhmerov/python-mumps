@@ -12,8 +12,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.linalg as la
 
-from mumps import (Context, SchurContext, MUMPSError, schur_complement,
-                   nullspace)
+from mumps import Context, MUMPSError, schur_complement, nullspace
 from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
@@ -78,11 +77,11 @@ def test_schur_complement_solution(dtype, mat_size):
     a = rand.randmat(mat_size, mat_size, dtype)
     bvec = rand.randvec(mat_size, dtype)
 
-    ctx = SchurContext()
+    ctx = Context()
     ctx.set_matrix(a)
     ctx.get_schur(range(3))
 
-    xvec = ctx.solve(bvec)
+    xvec = ctx.solve_schur(bvec)
 
     assert_array_almost_equal(dtype, a @ xvec, bvec)
 
