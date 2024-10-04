@@ -659,7 +659,9 @@ class Context:
         self.mumps_instance.job = 3
         self.call()
 
-        x2 = la.solve(self.schur_complement, schur_rhs)  # solve dense system
+        assume_a = "sym" if self.mumps_instance.sym else "gen"
+        # solve dense system
+        x2 = la.solve(self.schur_complement.T, schur_rhs, assume_a=assume_a)
 
         schur_rhs[:] = x2
         self.mumps_instance.icntl[26] = 2  # Expansion phase
