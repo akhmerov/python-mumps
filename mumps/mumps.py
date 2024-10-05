@@ -637,21 +637,22 @@ class Context:
         if scipy.sparse.isspmatrix(b):
             b = b.tocsc()
             x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
-            dt, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
+            b_dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
 
             self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
             self.mumps_instance.set_dense_rhs(x)
             self.mumps_instance.icntl[20] = 1
 
         else:
-            dt, b = prepare_for_fortran(overwrite_b, b, np.zeros(1, dtype=dtype))[:2]
+            b_dtype, b = prepare_for_fortran(overwrite_b, b, np.zeros(1, dtype=dtype))[
+                :2
+            ]
             self.mumps_instance.set_dense_rhs(b)
             x = b
 
-        if self.dtype != dt:
+        if self.dtype != b_dtype:
             raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
+                "Data type of right hand side is not compatible with the dtype of the "
                 "linear system"
             )
 
