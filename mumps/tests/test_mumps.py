@@ -79,7 +79,7 @@ def test_schur_complement_solution(dtype, mat_size):
 
     ctx = Context()
     ctx.set_matrix(a)
-    ctx.get_schur(range(3))
+    ctx.schur(range(3))
 
     xvec = ctx.solve_schur(bvec)
 

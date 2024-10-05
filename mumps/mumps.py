@@ -508,7 +508,7 @@ class Context:
         else:
             return self._solve_dense(b, overwrite_b)
 
-    def get_schur(
+    def schur(
         self,
         indices,
         a=None,
@@ -559,26 +559,24 @@ class Context:
         if indices.ndim != 1:
             raise ValueError("Schur indices must be specified in a 1d array!")
         self.schur_indices = indices = _makemumps_index_array(indices)
-        schur_compl = np.empty(
+        self.schur_complement = np.empty(
             (indices.size, indices.size), order="C", dtype=self.data.dtype
         )
 
         self.mumps_instance.icntl[19] = 1
-        self.mumps_instance.set_schur(schur_compl, indices)
+        self.mumps_instance.set_schur(self.schur_complement, indices)
 
         self.mumps_instance.icntl[31] = 1 if discard_factors else 0
 
         self.analyze(ordering=ordering)
         self.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
 
-        self.schur_complement = schur_compl
-
-        return schur_compl
+        return self.schur_complement
 
     def solve_schur(self, b, overwrite_b=False):
-        """Solve a linear system using Schur complement method after the
-        factorization has previously been performed by `get_schur`.
+        """Solve a linear system using Schur complement method.
 
+        This requires that the factorization has previously been performed by ``schur``.
         Supports both dense and sparse right hand sides.
 
         Parameters
@@ -614,13 +612,13 @@ class Context:
         >>> schur_indices = np.array([2, 3])
         >>> mtx = sp.coo_matrix((val, (row, col)), shape=(4, 4))
         >>> ctx = mumps.Context()
-        >>> ctx.get_schur(schur_indices, mtx)
+        >>> ctx.schur(schur_indices, mtx)
         >>> ctx.solve_schur(b)
         array([1., 2., 3., 4.])
         """
         if self.schur_complement is None:
             raise RuntimeError(
-                "Factorization must be done by calling 'get_schur()' before solving!"
+                "Factorization must be done by calling 'schur()' before solving!"
             )
 
         if b.shape[0] != self.n:
@@ -719,7 +717,7 @@ def schur_complement(
         if ``calc_stats==True``.
     """
     with Context() as ctx:
-        schur_compl = ctx.get_schur(
+        schur_compl = ctx.schur(
             indices,
             a,
             ordering=ordering,
