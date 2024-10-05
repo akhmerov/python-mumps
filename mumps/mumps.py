@@ -241,7 +241,7 @@ class Context:
         self.verbose = verbose
         self.factored = False
         self.schur_complement = None
-        self.schur_indicies = None
+        self.schur_indices = None
 
     def __enter__(self):
         return self
@@ -558,7 +558,7 @@ class Context:
         indices = np.asanyarray(indices)
         if indices.ndim != 1:
             raise ValueError("Schur indices must be specified in a 1d array!")
-        self.schur_indicies = indices = _makemumps_index_array(indices)
+        self.schur_indices = indices = _makemumps_index_array(indices)
         schur_compl = np.empty(
             (indices.size, indices.size), order="C", dtype=self.data.dtype
         )
@@ -631,7 +631,7 @@ class Context:
 
         dtype = self.data.dtype
 
-        schur_rhs = np.empty((self.schur_indicies.size,), dtype=dtype)
+        schur_rhs = np.empty((self.schur_indices.size,), dtype=dtype)
         self.mumps_instance.set_schur_rhs(schur_rhs)
 
         if scipy.sparse.isspmatrix(b):
