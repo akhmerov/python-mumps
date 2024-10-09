@@ -242,6 +242,8 @@ class Context:
         self.factored = False
         self.schur_complement = None
         self.schur_indices = None
+        self.schur_rhs = None
+        self.schur_x = None
 
     def __enter__(self):
         return self
@@ -573,6 +575,102 @@ class Context:
 
         return self.schur_complement
 
+    def schur_condense(self, b, overwrite_b=False):
+        """Return the condensed right hand side vector or matrix.
+
+        This requires that the factorization has previously been performed by ``schur``.
+        Supports both dense and sparse right hand sides.
+
+        Parameters
+        ----------
+
+        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+            the right hand side to solve. Accepts both dense and sparse input;
+            if the input is sparse 'csc' format is used internally (so passing
+            a 'csc' matrix gives best performance).
+        overwrite_b : True or False
+            whether the data in b may be overwritten, which can lead to a small
+            performance gain. Default is False.
+
+        Returns
+        -------
+
+        schur_rhs : NumPy array
+            the solution to the linear system as a dense matrix (a vector is
+            returned if b was a vector, otherwise a matrix is returned).
+        """
+
+        if self.schur_complement is None:
+            raise RuntimeError(
+                "Factorization must be done by calling 'schur()' before solving!"
+            )
+
+        if b.shape[0] != self.n:
+            raise ValueError("Right hand side has wrong size")
+
+        if len(b.shape) > 1 and b.shape[0] > 0:
+            raise ValueError("Right hand side must be a vector, not a matrix.")
+
+        dtype = self.data.dtype
+
+        self.schur_rhs = np.empty((self.schur_indices.size,), dtype=dtype)
+        self.mumps_instance.set_schur_rhs(self.schur_rhs)
+
+        if scipy.sparse.isspmatrix(b):
+            b = b.tocsc()
+            self.schur_x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
+            b_dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
+
+            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
+            self.mumps_instance.set_dense_rhs(self.schur_x)
+            self.mumps_instance.icntl[20] = 1
+
+        else:
+            b_dtype, b = prepare_for_fortran(overwrite_b, b, np.zeros(1, dtype=dtype))[
+                :2
+            ]
+            self.mumps_instance.set_dense_rhs(b)
+            self.schur_x = b
+
+        if self.dtype != b_dtype:
+            raise ValueError(
+                "Data type of right hand side is not compatible with the dtype of the "
+                "linear system"
+            )
+
+        self.mumps_instance.icntl[26] = 1  # Reduction/condensation phase
+        self.mumps_instance.job = 3
+        self.call()
+
+        return self.schur_rhs
+
+    def schur_expand(self, x2):
+        """Perform the expansion step and return the complete solution.
+
+        Parameters
+        ----------
+        x2 : NumPy array (vector or a matrix)
+            the partial solution of the Schur system.
+
+        Returns
+        -------
+
+        x : NumPy array
+            the solution to the linear system as a dense matrix (a vector is
+            returned if b was a vector, otherwise a matrix is returned).
+        """
+        if self.schur_rhs is None:
+            raise RuntimeError(
+                "Condensation must be done by calling 'schur_condense()' before expansion!"
+            )
+
+        self.schur_rhs[:] = x2
+        self.mumps_instance.icntl[26] = 2  # Expansion phase
+        self.mumps_instance.job = 3
+        self.call()
+
+        return self.schur_x
+
     def solve_schur(self, b, overwrite_b=False):
         """Solve a linear system using Schur complement method.
 
@@ -616,56 +714,13 @@ class Context:
         >>> ctx.solve_schur(b)
         array([1., 2., 3., 4.])
         """
-        if self.schur_complement is None:
-            raise RuntimeError(
-                "Factorization must be done by calling 'schur()' before solving!"
-            )
-
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
-
-        if len(b.shape) > 1 and b.shape[0] > 0:
-            raise ValueError("Right hand side must be a vector, not a matrix.")
-
-        dtype = self.data.dtype
-
-        schur_rhs = np.empty((self.schur_indices.size,), dtype=dtype)
-        self.mumps_instance.set_schur_rhs(schur_rhs)
-
-        if scipy.sparse.isspmatrix(b):
-            b = b.tocsc()
-            x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
-            b_dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
-
-            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
-            self.mumps_instance.set_dense_rhs(x)
-            self.mumps_instance.icntl[20] = 1
-
-        else:
-            b_dtype, b = prepare_for_fortran(overwrite_b, b, np.zeros(1, dtype=dtype))[
-                :2
-            ]
-            self.mumps_instance.set_dense_rhs(b)
-            x = b
-
-        if self.dtype != b_dtype:
-            raise ValueError(
-                "Data type of right hand side is not compatible with the dtype of the "
-                "linear system"
-            )
-
-        self.mumps_instance.icntl[26] = 1  # Reduction/condensation phase
-        self.mumps_instance.job = 3
-        self.call()
+        schur_rhs = self.schur_condense(b, overwrite_b=overwrite_b)
 
         assume_a = "sym" if self.mumps_instance.sym else "gen"
         # solve dense system
         x2 = la.solve(self.schur_complement, schur_rhs, assume_a=assume_a)
 
-        schur_rhs[:] = x2
-        self.mumps_instance.icntl[26] = 2  # Expansion phase
-        self.mumps_instance.job = 3
-        self.call()
+        x = self.schur_expand(x2)
 
         return x
 
