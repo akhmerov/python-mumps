@@ -716,9 +716,12 @@ class Context:
         """
         schur_rhs = self.schur_condense(b, overwrite_b=overwrite_b)
 
-        assume_a = "sym" if self.mumps_instance.sym else "gen"
         # solve dense system
-        x2 = la.solve(self.schur_complement, schur_rhs, assume_a=assume_a)
+        if self.mumps_instance.sym:
+            # Schur matrix is lower triangular for symmetric matrices
+            x2 = la.solve(self.schur_complement, schur_rhs, lower=True, assume_a="sym")
+        else:
+            x2 = la.solve(self.schur_complement, schur_rhs)
 
         x = self.schur_expand(x2)
 
