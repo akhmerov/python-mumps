@@ -62,6 +62,9 @@ cdef extern from "{{p.lower()}}mumps_c.h" nogil:
         MUMPS_INT *listvar_schur
         {{p}}MUMPS_COMPLEX *schur
 
+        MUMPS_INT lredrhs
+        {{p}}MUMPS_COMPLEX *redrhs
+
     cdef void {{p.lower()}}mumps_c({{p}}MUMPS_STRUC_C *)
 
 {{endfor}}

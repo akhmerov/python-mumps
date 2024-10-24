@@ -203,4 +203,10 @@ cdef class {{p.lower()}}mumps:
         self.params.schur = <mumps.{{p}}MUMPS_COMPLEX *>schur.data
         self.params.listvar_schur = <mumps.MUMPS_INT *>schur_vars.data
 
+    def set_schur_rhs(self,
+                      np.ndarray[{{p}}MUMPS_COMPLEX_NPT, ndim=1, mode='c'] rhs):
+
+        self.params.lredrhs = rhs.shape[0]
+        self.params.redrhs = <mumps.{{p}}MUMPS_COMPLEX *>rhs.data
+
 {{endfor}}

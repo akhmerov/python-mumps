@@ -71,6 +71,26 @@ def test_schur_complement_with_dense(dtype, mat_size):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.parametrize("mat_size", [5, 10], ids=str)
+@pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
+def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
+    rand = _Random()
+    a = rand.randmat(mat_size, mat_size, dtype)
+    if symmetric_matrix:
+        a = a + a.T
+
+    bvec = rand.randvec(mat_size, dtype)
+
+    ctx = Context()
+    ctx.set_matrix(a, symmetric=symmetric_matrix)
+    ctx.schur(range(3))
+
+    xvec = ctx.solve_schur(bvec)
+
+    assert_array_almost_equal(dtype, a @ xvec, bvec)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
 def test_factor_error(dtype):
     """Test that an error is raised if factor is asked to reuse missing analysis."""
     a = sp.identity(10, dtype=dtype)

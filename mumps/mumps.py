@@ -240,6 +240,10 @@ class Context:
         self.dtype = None
         self.verbose = verbose
         self.factored = False
+        self.schur_complement = None
+        self.schur_indices = None
+        self.schur_rhs = None
+        self.schur_x = None
 
     def __enter__(self):
         return self
@@ -506,6 +510,223 @@ class Context:
         else:
             return self._solve_dense(b, overwrite_b)
 
+    def schur(
+        self,
+        indices,
+        a=None,
+        ordering="auto",
+        ooc=False,
+        pivot_tol=0.01,
+        overwrite_a=False,
+        discard_factors=False,
+    ):
+        """Compute the Schur complement block of matrix a using MUMPS.
+
+        Parameters:
+        indices : 1d array
+            indices (row and column) of the desired Schur complement block.  (The
+            Schur complement block is square, so that the indices are both row and
+            column indices.)
+        a : sparse matrix
+            input matrix. Internally, the matrix is converted to `coo` format (so
+            passing this format is best for performance)
+        ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
+            ordering to use in the factorization. The availability of a particular
+            ordering depends on the MUMPS installation.  Default is 'auto'.
+        ooc : True or False
+            whether to use the out-of-core functionality of MUMPS.  (out-of-core
+            means that data is written to disk to reduce memory usage.) Default is
+            False.
+        pivot_tol: number in the range [0, 1]
+            pivoting threshold. Pivoting is typically limited in sparse solvers, as
+            too much pivoting destroys sparsity. 1.0 means full pivoting, whereas
+            0.0 means no pivoting. Default is 0.01.
+        overwrite_a : True or False
+            whether the data in a may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        discard_factors: True or False
+            whether to discard all matrix factors during factorization phase.
+            Default is False.
+
+        Returns
+        -------
+
+        schur_compl: NumPy array
+            Schur complement block
+        """
+        if a is not None:
+            self.set_matrix(a, overwrite_a)
+
+        indices = np.asanyarray(indices)
+        if indices.ndim != 1:
+            raise ValueError("Schur indices must be specified in a 1d array!")
+        self.schur_indices = indices = _makemumps_index_array(indices)
+        self.schur_complement = np.empty(
+            (indices.size, indices.size), order="C", dtype=self.data.dtype
+        )
+
+        self.mumps_instance.icntl[19] = 1
+        self.mumps_instance.set_schur(self.schur_complement, indices)
+
+        self.mumps_instance.icntl[31] = 1 if discard_factors else 0
+
+        self.analyze(ordering=ordering)
+        self.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
+
+        return self.schur_complement
+
+    def schur_condense(self, b, overwrite_b=False):
+        """Return the condensed right hand side vector or matrix.
+
+        This requires that the factorization has previously been performed by ``schur``.
+        Supports both dense and sparse right hand sides.
+
+        Parameters
+        ----------
+
+        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+            the right hand side to solve. Accepts both dense and sparse input;
+            if the input is sparse 'csc' format is used internally (so passing
+            a 'csc' matrix gives best performance).
+        overwrite_b : True or False
+            whether the data in b may be overwritten, which can lead to a small
+            performance gain. Default is False.
+
+        Returns
+        -------
+
+        schur_rhs : NumPy array
+            the solution to the linear system as a dense matrix (a vector is
+            returned if b was a vector, otherwise a matrix is returned).
+        """
+
+        if self.schur_complement is None:
+            raise RuntimeError(
+                "Factorization must be done by calling 'schur()' before solving!"
+            )
+
+        if b.shape[0] != self.n:
+            raise ValueError("Right hand side has wrong size")
+
+        if len(b.shape) > 1 and b.shape[0] > 0:
+            raise ValueError("Right hand side must be a vector, not a matrix.")
+
+        dtype = self.data.dtype
+
+        self.schur_rhs = np.empty((self.schur_indices.size,), dtype=dtype)
+        self.mumps_instance.set_schur_rhs(self.schur_rhs)
+
+        if scipy.sparse.isspmatrix(b):
+            b = b.tocsc()
+            self.schur_x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
+            b_dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
+
+            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
+            self.mumps_instance.set_dense_rhs(self.schur_x)
+            self.mumps_instance.icntl[20] = 1
+
+        else:
+            b_dtype, b = prepare_for_fortran(overwrite_b, b, np.zeros(1, dtype=dtype))[
+                :2
+            ]
+            self.mumps_instance.set_dense_rhs(b)
+            self.schur_x = b
+
+        if self.dtype != b_dtype:
+            raise ValueError(
+                "Data type of right hand side is not compatible with the dtype of the "
+                "linear system"
+            )
+
+        self.mumps_instance.icntl[26] = 1  # Reduction/condensation phase
+        self.mumps_instance.job = 3
+        self.call()
+
+        return self.schur_rhs
+
+    def schur_expand(self, x2):
+        """Perform the expansion step and return the complete solution.
+
+        Parameters
+        ----------
+        x2 : NumPy array (vector or a matrix)
+            the partial solution of the Schur system.
+
+        Returns
+        -------
+
+        x : NumPy array
+            the solution to the linear system as a dense matrix (a vector is
+            returned if b was a vector, otherwise a matrix is returned).
+        """
+        if self.schur_rhs is None:
+            raise RuntimeError(
+                "Condensation must be done by calling 'schur_condense()' before expansion!"
+            )
+
+        self.schur_rhs[:] = x2
+        self.mumps_instance.icntl[26] = 2  # Expansion phase
+        self.mumps_instance.job = 3
+        self.call()
+
+        return self.schur_x
+
+    def solve_schur(self, b, overwrite_b=False):
+        """Solve a linear system using Schur complement method.
+
+        This requires that the factorization has previously been performed by ``schur``.
+        Supports both dense and sparse right hand sides.
+
+        Parameters
+        ----------
+
+        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+            the right hand side to solve. Accepts both dense and sparse input;
+            if the input is sparse 'csc' format is used internally (so passing
+            a 'csc' matrix gives best performance).
+        overwrite_b : True or False
+            whether the data in b may be overwritten, which can lead to a small
+            performance gain. Default is False.
+
+        Returns
+        -------
+
+        x : NumPy array
+            the solution to the linear system as a dense matrix (a vector is
+            returned if b was a vector, otherwise a matrix is returned).
+
+        Example
+        -------
+
+        Solving a system of equations.
+
+        >>> import mumps
+        >>> import numpy as np
+        >>> import scipy.sparse as sp
+        >>> row = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3])
+        >>> col = np.array([0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 0, 1])
+        >>> val = np.array([1, 2, 2, 1, 1, 3, -1, 2, 1, 1, 3, 1], dtype='d')
+        >>> b = np.array([15, 12, 3, 5], dtype='d')
+        >>> schur_indices = np.array([2, 3])
+        >>> mtx = sp.coo_matrix((val, (row, col)), shape=(4, 4))
+        >>> ctx = mumps.Context()
+        >>> ctx.schur(schur_indices, mtx)
+        >>> ctx.solve_schur(b)
+        array([1., 2., 3., 4.])
+        """
+        schur_rhs = self.schur_condense(b, overwrite_b=overwrite_b)
+
+        # solve dense system
+        if self.mumps_instance.sym:
+            # Schur matrix is lower triangular for symmetric matrices
+            x2 = la.solve(self.schur_complement, schur_rhs, lower=True, assume_a="sym")
+        else:
+            x2 = la.solve(self.schur_complement, schur_rhs)
+
+        x = self.schur_expand(x2)
+
+        return x
+
 
 def schur_complement(
     a,
@@ -553,20 +774,16 @@ def schur_complement(
         statistics of the factorization as collected by MUMPS.  Only returned
         if ``calc_stats==True``.
     """
-    indices = np.asanyarray(indices)
-    if indices.ndim != 1:
-        raise ValueError("Schur indices must be specified in a 1d array!")
-    indices = _makemumps_index_array(indices)
-    schur_compl = np.empty((indices.size, indices.size), order="C", dtype=a.dtype)
-
     with Context() as ctx:
-        ctx.set_matrix(a, overwrite_a=overwrite_a)
-        ctx.mumps_instance.icntl[19] = 1
-        ctx.mumps_instance.icntl[31] = 1
-        ctx.mumps_instance.set_schur(schur_compl, indices)
-        ctx.analyze(ordering=ordering)
-        # Job = Schur, discard factors
-        ctx.factor(reuse_analysis=True, ooc=ooc, pivot_tol=pivot_tol)
+        schur_compl = ctx.schur(
+            indices,
+            a,
+            ordering=ordering,
+            ooc=ooc,
+            overwrite_a=overwrite_a,
+            pivot_tol=pivot_tol,
+            discard_factors=True,
+        )
 
     if calc_stats:
         return [schur_compl, ctx.analysis_stats, ctx.factor_stats]
