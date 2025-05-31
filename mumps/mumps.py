@@ -742,7 +742,7 @@ class Context:
 
         Parameters
         ----------
-        a : sparse matrix
+        a : sparse matrix, optional
             Input sparse matrix. If `a` is not given, the matrix passed to
             `set_matrix` is used.
         symmetric : bool, optional
@@ -797,6 +797,7 @@ class Context:
 
         try:
             self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
+            self.factored = not discard_factors
         except MUMPSError:
             if self.mumps_instance.infog[1] == -10:
                 # the matrix is singular
@@ -809,6 +810,70 @@ class Context:
             b = dtype(self.mumps_instance.rinfog[13])
             c = dtype(self.mumps_instance.infog[34])
         return (a + 1j * b) * 2**c
+
+    def signature(self,
+                  a=None,
+                  ordering='auto',
+                  overwrite_a=False,
+                  discard_factors=True,
+                  reuse_analysis=False):
+        """
+        Compute the signature (number of positive minus negative eigenvalues)
+        of a real symmetric sparse matrix using MUMPS.
+
+        Parameters
+        ----------
+        a : sparse matrix (optional)
+            input sparse matrix. Must be real symmetric, and non-singular.
+            If `a` is not given, the matrix passed to `set_matrix` is used,
+            if it was already factored, the factorization is reused.
+        ordering : {'auto', 'amd', 'metis', ...}, optional
+            Ordering strategy for MUMPS symbolic factorization. See MUMPS
+            documentation for options. Default is 'auto'.
+        overwrite_a : bool, optional
+            whether the data in `a` may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        discard_factors: bool, optional
+            whether to discard all matrix factors during factorization phase.
+            Default is True.
+        reuse_analysis : bool, optional
+            whether to reuse the anaylsis from the last analyze call.
+            Default is False.
+
+        Returns
+        -------
+        sign : int
+            The signature of the matrix (number of positive minus number of
+            negative eigenvalues).
+
+        Notes
+        -----
+        Raises MUMPSError if the matrix is singular. Does no check whether
+        `a` is real symmetric, only the real part of the upper triangular part
+        of the matrix is used.
+
+        Examples
+        --------
+        >>> from python_mumps import signature
+        >>> import scipy.sparse as sp
+        >>> a = sp.eye(4)
+        >>> signature(a)
+        4
+        """
+        if a is not None:
+            self.set_matrix(a.real, overwrite_a, symmetric=True)
+        elif not self.mumps_instance.sym == 2 or self.dtype in 'cz':
+            raise ValueError("Signature can only be computed for real symmetric matrices!")
+        # whether to store factorization
+        self.mumps_instance.icntl[31] = (1 if discard_factors else 0)
+        if not self.factored:
+            self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
+            self.factored = not discard_factors
+        # "inertia" = number of negative eigenvalues is stored here
+        n_neg = self.mumps_instance.infog[12]
+        print(n_neg)
+        sign = self.n - 2 * n_neg
+        return sign
 
 
 def schur_complement(
@@ -935,61 +1000,6 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
     return nullspace
 
 
-def signature(A, hermitian=False, ordering='auto'):
-    """
-    Compute the signature (number of positive minus negative eigenvalues)
-    of a real symmetric or Hermitian sparse matrix using MUMPS.
-
-    Parameters
-    ----------
-    A : scipy.sparse.csr_matrix or compatible
-        Input sparse matrix. Must be real symmetric (if `hermitian` is
-        False) or Hermitian (if `hermitian` is True), and non-singular.
-    hermitian : bool, optional
-        If True, treat `A` as a complex Hermitian matrix and convert it
-        to a real symmetric form (default: False).
-    ordering : {'auto', 'amd', 'metis', ...}, optional
-        Ordering strategy for MUMPS symbolic factorization. See MUMPS
-        documentation for options (default: 'auto').
-
-    Returns
-    -------
-    sign : int
-        The signature of the matrix (number of positive minus number of
-        negative eigenvalues).
-
-    Notes
-    -----
-    If `hermitian` is True, the matrix is assumed to be complex Hermitian
-    and converted to a real symmetric matrix of double size before
-    computation. Raises MUMPSError if the matrix is singular.
-
-    Examples
-    --------
-    >>> from python_mumps import signature
-    >>> import scipy.sparse as sp
-    >>> A = sp.eye(4)
-    >>> signature(A)
-    4
-    """
-    if hermitian:
-        A = _hermitian_to_real_symmetric(A)
-    with Context() as inst:
-        inst.set_matrix(A, symmetric=True)
-        # don't store factorization
-        inst.mumps_instance.icntl[31] = 1
-        inst.analyze(ordering=ordering)
-        inst.factor()
-        # "inertia" = number of negative eigenvalues is stored here
-        n_neg = inst.mumps_instance.infog[12]
-    sign = A.shape[0] - 2 * n_neg
-    if hermitian:
-        # all eigenvalues are doubled
-        assert sign % 2 == 0
-        sign //= 2
-    return sign
-
-
 # Some internal helper functions
 def _make_assembled_from_coo(a, overwrite_a):
     """
@@ -1059,8 +1069,8 @@ def complex_to_real(a, format=None):
     a : sparse matrix
         input sparse matrix.
     format : str, optional
-        sparse matrix format of the output. By default the input
-        format is kept.
+        sparse matrix format of the output. By default the type
+        of the real part of the input matrix is used.
 
     Returns
     -------
