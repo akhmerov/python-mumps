@@ -7,6 +7,7 @@ from .mumps import (
     nullspace,
     possible_orderings,
     orderings,
+    complex_to_real,
 )
 from ._version import __version__
 
