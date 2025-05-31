@@ -852,6 +852,120 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
     return nullspace
 
 
+def signature(A, hermitian=False, ordering='auto'):
+    """
+    Compute the signature (number of positive minus negative eigenvalues)
+    of a real symmetric or Hermitian sparse matrix using MUMPS.
+
+    Parameters
+    ----------
+    A : scipy.sparse.csr_matrix or compatible
+        Input sparse matrix. Must be real symmetric (if `hermitian` is
+        False) or Hermitian (if `hermitian` is True), and non-singular.
+    hermitian : bool, optional
+        If True, treat `A` as a complex Hermitian matrix and convert it
+        to a real symmetric form (default: False).
+    ordering : {'auto', 'amd', 'metis', ...}, optional
+        Ordering strategy for MUMPS symbolic factorization. See MUMPS
+        documentation for options (default: 'auto').
+
+    Returns
+    -------
+    sign : int
+        The signature of the matrix (number of positive minus number of
+        negative eigenvalues).
+
+    Notes
+    -----
+    If `hermitian` is True, the matrix is assumed to be complex Hermitian
+    and converted to a real symmetric matrix of double size before
+    computation. Raises MUMPSError if the matrix is singular.
+
+    Examples
+    --------
+    >>> from python_mumps import signature
+    >>> import scipy.sparse as sp
+    >>> A = sp.eye(4)
+    >>> signature(A)
+    4
+    """
+    if hermitian:
+        A = _hermitian_to_real_symmetric(A)
+    with Context() as inst:
+        inst.set_matrix(A, symmetric=True)
+        # don't store factorization
+        inst.mumps_instance.icntl[31] = 1
+        inst.analyze(ordering=ordering)
+        inst.factor()
+        # "inertia" = number of negative eigenvalues is stored here
+        n_neg = inst.mumps_instance.infog[12]
+    sign = A.shape[0] - 2 * n_neg
+    if hermitian:
+        # all eigenvalues are doubled
+        assert sign % 2 == 0
+        sign //= 2
+    return sign
+
+def det(A, symmetric=False, dtype=complex, ordering='auto'):
+    """
+    Compute the determinant of a sparse matrix using MUMPS.
+
+    Parameters
+    ----------
+    A : scipy.sparse.csr_matrix or compatible
+        Input sparse matrix.
+    symmetric : bool, optional
+        If True, treat `A` as symmetric. (default: False)
+    dtype : type, optional
+        Output type. (default: complex).
+    ordering : {'auto', 'amd', 'metis', ...}, optional
+        Ordering strategy for MUMPS symbolic factorization. See MUMPS
+        documentation for options (default: 'auto').
+
+    Returns
+    -------
+    det : dtype
+        Determinant of the matrix.
+
+    Notes
+    -----
+    For large matrices the determinant can be very large, causing
+    OverflowError with default data types. Setting dtype provides
+    the option to use other number representations, for example
+    `complex256`.
+
+    Examples
+    --------
+    >>> from python_mumps import determinant
+    >>> import scipy.sparse as sp
+    >>> A = sp.eye(4)
+    >>> determinant(A)
+    (1+0j)
+    """
+    with Context() as inst:
+        inst.set_matrix(A, symmetric=symmetric)
+        # don't store factorization
+        inst.mumps_instance.icntl[31] = 1
+        # calculate determinant
+        inst.mumps_instance.icntl[33] = 1
+        inst.analyze(ordering=ordering)
+        try:
+            inst.factor()
+        except MUMPSError:
+            if inst.mumps_instance.infog[1] == -10:
+                # the matrix is singular
+                a = b = c = dtype(0)
+                ### TODO: this case crases when the context terminates
+            else:
+                raise
+        else:
+            # retrieve determinant
+            a = dtype(inst.mumps_instance.rinfog[12])
+            b = dtype(inst.mumps_instance.rinfog[13])
+            c = dtype(inst.mumps_instance.infog[34])
+    return (a + 1j * b) * 2**c
+
+
 # Some internal helper functions
 def _make_assembled_from_coo(a, overwrite_a):
     """
@@ -911,3 +1025,9 @@ def _makemumps_index_array(a):
     a += 1  # Fortran indices
 
     return a
+
+def _hermitian_to_real_symmetric(A, format=None):
+    A_real = A.real
+    A_imag = A.imag
+    return scipy.sparse.bmat([[A_real,   A_imag],
+                              [-A_imag,  A_real]], format)
