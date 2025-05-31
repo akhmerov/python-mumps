@@ -12,7 +12,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.linalg as la
 
-from mumps import Context, MUMPSError, schur_complement, nullspace
+from mumps import Context, MUMPSError, schur_complement, nullspace, complex_to_real
 from ._test_utils import _Random
 
 # Decimal places of precision per datatype. These limits have been determined
@@ -96,6 +96,10 @@ def test_factor_error(dtype):
     a = sp.identity(10, dtype=dtype)
     with pytest.raises(ValueError):
         Context().factor(a, reuse_analysis=True)
+
+    Context().set_matrix(a)
+    with pytest.raises(ValueError):
+        Context().factor(reuse_analysis=True)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -230,3 +234,39 @@ def test_symmetric_matrix(dtype):
     ctx.factor()
     rhs = np.random.randn(n, 1).astype(dtype)
     assert_almost_equal(dtype, ctx.solve(rhs), la.solve(a, rhs))
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
+def test_det_with_dense(dtype, mat_size):
+    rand = _Random()
+    a = rand.randmat(mat_size, mat_size, dtype)
+    ctx = Context()
+    det = ctx.det(sp.csr_matrix(a))
+    # relative comparison of large numbers
+    assert_almost_equal(dtype, det / la.det(a), 1)
+
+    # test singular matrix
+    b = np.zeros((mat_size + 1, mat_size + 1), dtype)
+    b[:mat_size][:, :mat_size] = a
+    ctx = Context()
+    det = ctx.det(sp.csr_matrix(b))
+    assert_almost_equal(dtype, det, 0)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
+def test_signature_with_dense(dtype, mat_size):
+    rand = _Random()
+    a = rand.randmat(mat_size, mat_size, dtype)
+    a += a.T.conj()
+
+    sign_ref = np.sum(np.sign(la.eigvalsh(a)))
+
+    if dtype in [np.complex64, np.complex128]:
+        a = complex_to_real(sp.csr_matrix(a))
+        sign_ref *= 2
+
+    ctx = Context()
+    sign = ctx.signature(sp.csr_matrix(a))
+    assert sign == sign_ref
