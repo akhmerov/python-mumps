@@ -319,6 +319,7 @@ class Context:
         self.col = col
         self.data = data
         self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+        self.factored = False
 
     def analyze(self, a=None, ordering="auto", overwrite_a=False):
         """Perform analysis step of MUMPS.
