@@ -729,6 +729,87 @@ class Context:
 
         return x
 
+    def det(self,
+            a=None,
+            symmetric=False,
+            dtype=complex,
+            ordering='auto',
+            overwrite_a=False,
+            discard_factors=True,
+            reuse_analysis=False):
+        """
+        Compute the determinant of a sparse matrix using MUMPS.
+
+        Parameters
+        ----------
+        a : sparse matrix
+            Input sparse matrix. If `a` is not given, the matrix passed to
+            `set_matrix` is used.
+        symmetric : bool, optional
+            If True, treat `a` as symmetric. Ignored if `a` is not set.
+            Default is False.
+        dtype : type, optional
+            Output type. Default is complex.
+        ordering : {'auto', 'amd', 'metis', ...}, optional
+            Ordering strategy for MUMPS symbolic factorization. See MUMPS
+            documentation for options. Default is 'auto'.
+        overwrite_a : bool, optional
+            whether the data in `a` may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        discard_factors: bool, optional
+            whether to discard all matrix factors during factorization phase.
+            Default is True.
+        reuse_analysis : bool, optional
+            whether to reuse the anaylsis from the last analyze call.
+            Default is False.
+
+        Returns
+        -------
+        det : dtype
+            Determinant of the matrix.
+
+        Notes
+        -----
+        For large matrices the determinant can be very large, causing
+        OverflowError with default data types. Setting dtype provides
+        the option to use other number representations, for example
+        `complex256`.
+
+        Calculating the determinant is minimal overhead while LU factorizing,
+        but requires setting a flag beforehand. It is recommended to first
+        run `det` and reuse the factorization for example for linear solving.
+
+        Examples
+        --------
+        >>> import mumps
+        >>> import scipy.sparse as sp
+        >>> ctx = mumps.Context()
+        >>> a = -sp.eye(5)
+        >>> ctx.det(a)
+        (-1+0j)
+        """
+        if a is not None:
+            self.set_matrix(a, overwrite_a, symmetric)
+        # whether to store factorization
+        self.mumps_instance.icntl[31] = (1 if discard_factors else 0)
+        # setting to calculate determinant
+        self.mumps_instance.icntl[33] = 1
+
+        try:
+            self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
+        except MUMPSError:
+            if self.mumps_instance.infog[1] == -10:
+                # the matrix is singular
+                a = b = c = dtype(0)
+            else:
+                raise
+        else:
+            # retrieve determinant
+            a = dtype(self.mumps_instance.rinfog[12])
+            b = dtype(self.mumps_instance.rinfog[13])
+            c = dtype(self.mumps_instance.infog[34])
+        return (a + 1j * b) * 2**c
+
 
 def schur_complement(
     a,
@@ -907,65 +988,6 @@ def signature(A, hermitian=False, ordering='auto'):
         assert sign % 2 == 0
         sign //= 2
     return sign
-
-def det(A, symmetric=False, dtype=complex, ordering='auto'):
-    """
-    Compute the determinant of a sparse matrix using MUMPS.
-
-    Parameters
-    ----------
-    A : scipy.sparse.csr_matrix or compatible
-        Input sparse matrix.
-    symmetric : bool, optional
-        If True, treat `A` as symmetric. (default: False)
-    dtype : type, optional
-        Output type. (default: complex).
-    ordering : {'auto', 'amd', 'metis', ...}, optional
-        Ordering strategy for MUMPS symbolic factorization. See MUMPS
-        documentation for options (default: 'auto').
-
-    Returns
-    -------
-    det : dtype
-        Determinant of the matrix.
-
-    Notes
-    -----
-    For large matrices the determinant can be very large, causing
-    OverflowError with default data types. Setting dtype provides
-    the option to use other number representations, for example
-    `complex256`.
-
-    Examples
-    --------
-    >>> from python_mumps import determinant
-    >>> import scipy.sparse as sp
-    >>> A = sp.eye(4)
-    >>> determinant(A)
-    (1+0j)
-    """
-    with Context() as inst:
-        inst.set_matrix(A, symmetric=symmetric)
-        # don't store factorization
-        inst.mumps_instance.icntl[31] = 1
-        # calculate determinant
-        inst.mumps_instance.icntl[33] = 1
-        inst.analyze(ordering=ordering)
-        try:
-            inst.factor()
-        except MUMPSError:
-            if inst.mumps_instance.infog[1] == -10:
-                # the matrix is singular
-                a = b = c = dtype(0)
-                ### TODO: this case crases when the context terminates
-            else:
-                raise
-        else:
-            # retrieve determinant
-            a = dtype(inst.mumps_instance.rinfog[12])
-            b = dtype(inst.mumps_instance.rinfog[13])
-            c = dtype(inst.mumps_instance.infog[34])
-    return (a + 1j * b) * 2**c
 
 
 # Some internal helper functions
