@@ -729,14 +729,16 @@ class Context:
 
         return x
 
-    def det(self,
-            a=None,
-            symmetric=False,
-            dtype=complex,
-            ordering='auto',
-            overwrite_a=False,
-            discard_factors=True,
-            reuse_analysis=False):
+    def det(
+        self,
+        a=None,
+        symmetric=False,
+        dtype=complex,
+        ordering="auto",
+        overwrite_a=False,
+        discard_factors=True,
+        reuse_analysis=False,
+    ):
         """
         Compute the determinant of a sparse matrix using MUMPS.
 
@@ -760,7 +762,7 @@ class Context:
             whether to discard all matrix factors during factorization phase.
             Default is True.
         reuse_analysis : bool, optional
-            whether to reuse the anaylsis from the last analyze call.
+            whether to reuse the analysis from the last analyze call.
             Default is False.
 
         Returns
@@ -791,7 +793,7 @@ class Context:
         if a is not None:
             self.set_matrix(a, overwrite_a, symmetric)
         # whether to store factorization
-        self.mumps_instance.icntl[31] = (1 if discard_factors else 0)
+        self.mumps_instance.icntl[31] = 1 if discard_factors else 0
         # setting to calculate determinant
         self.mumps_instance.icntl[33] = 1
 
@@ -811,12 +813,14 @@ class Context:
             c = dtype(self.mumps_instance.infog[34])
         return (a + 1j * b) * 2**c
 
-    def signature(self,
-                  a=None,
-                  ordering='auto',
-                  overwrite_a=False,
-                  discard_factors=True,
-                  reuse_analysis=False):
+    def signature(
+        self,
+        a=None,
+        ordering="auto",
+        overwrite_a=False,
+        discard_factors=True,
+        reuse_analysis=False,
+    ):
         """
         Compute the signature (number of positive minus negative eigenvalues)
         of a real symmetric sparse matrix using MUMPS.
@@ -837,7 +841,7 @@ class Context:
             whether to discard all matrix factors during factorization phase.
             Default is True.
         reuse_analysis : bool, optional
-            whether to reuse the anaylsis from the last analyze call.
+            whether to reuse the analysis from the last analyze call.
             Default is False.
 
         Returns
@@ -857,15 +861,18 @@ class Context:
         >>> from python_mumps import signature
         >>> import scipy.sparse as sp
         >>> a = sp.eye(4)
-        >>> signature(a)
+        >>> ctx = mumps.Context()
+        >>> ctx.signature(a)
         4
         """
         if a is not None:
             self.set_matrix(a.real, overwrite_a, symmetric=True)
-        elif not self.mumps_instance.sym == 2 or self.dtype in 'cz':
-            raise ValueError("Signature can only be computed for real symmetric matrices!")
+        elif not self.mumps_instance.sym == 2 or self.dtype in "cz":
+            raise ValueError(
+                "Signature can only be computed for real symmetric matrices!"
+            )
         # whether to store factorization
-        self.mumps_instance.icntl[31] = (1 if discard_factors else 0)
+        self.mumps_instance.icntl[31] = 1 if discard_factors else 0
         if not self.factored:
             self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
             self.factored = not discard_factors
@@ -1060,6 +1067,7 @@ def _makemumps_index_array(a):
 
     return a
 
+
 def complex_to_real(a, format=None):
     """
     Convert a complex array into a real one of twice the size.
@@ -1100,6 +1108,5 @@ def complex_to_real(a, format=None):
     """
     a_real = a.real
     a_imag = a.imag
-    a_real = scipy.sparse.bmat([[a_real,   a_imag],
-                                [-a_imag,  a_real]], format)
+    a_real = scipy.sparse.bmat([[a_real, a_imag], [-a_imag, a_real]], format)
     return a_real
