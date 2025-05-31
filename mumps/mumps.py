@@ -17,6 +17,7 @@ __all__ = [
     "FactorizationStatistics",
     "MUMPSError",
     "orderings",
+    "complex_to_real",
 ]
 
 import time
@@ -427,7 +428,8 @@ class Context:
             else:
                 break
 
-        self.factored = True
+        # only set factored if we didn't throw away the factors
+        self.factored = self.mumps_instance.icntl[31] == 0
         self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
@@ -799,7 +801,6 @@ class Context:
 
         try:
             self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
-            self.factored = not discard_factors
         except MUMPSError:
             if self.mumps_instance.infog[1] == -10:
                 # the matrix is singular
@@ -875,10 +876,8 @@ class Context:
         self.mumps_instance.icntl[31] = 1 if discard_factors else 0
         if not self.factored:
             self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
-            self.factored = not discard_factors
         # "inertia" = number of negative eigenvalues is stored here
         n_neg = self.mumps_instance.infog[12]
-        print(n_neg)
         sign = self.n - 2 * n_neg
         return sign
 
