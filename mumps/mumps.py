@@ -1050,8 +1050,46 @@ def _makemumps_index_array(a):
 
     return a
 
-def _hermitian_to_real_symmetric(A, format=None):
-    A_real = A.real
-    A_imag = A.imag
-    return scipy.sparse.bmat([[A_real,   A_imag],
-                              [-A_imag,  A_real]], format)
+def complex_to_real(a, format=None):
+    """
+    Convert a complex array into a real one of twice the size.
+
+    Parameters
+    ----------
+    a : sparse matrix
+        input sparse matrix.
+    format : str, optional
+        sparse matrix format of the output. By default the input
+        format is kept.
+
+    Returns
+    -------
+    a_real : sparse matrix
+        real matrix of double size in the format
+        `a.real 1 + a.imag i sigma_y` where multiplication is
+        meant in the tensor product sense.
+
+    Notes
+    -----
+    Useful for applying real symmetric algorithms to Hermitian
+    matrices. All eigenvalues and eigenvectors are doubled.
+
+    Examples
+    --------
+    >>> import mumps
+    >>> import scipy.sparse as sp
+    >>> N = 100
+    >>> density = 6/N
+    >>> rvs = scipy.stats.norm().rvs
+    >>> a = sp.random(N, N, density=density, format='csr', dtype=complex, rng=None, data_rvs=rvs)
+    >>> a.data *= np.exp(1j * 2 * np.pi * np.random.random(size=a.data.size))
+    >>> a += a.T.conj()
+    >>> a_real = complex_to_real(a)
+    >>> ctx = mumps.Context()
+    >>> ctx.signature(a_real) // 2
+    """
+    a_real = a.real
+    a_imag = a.imag
+    a_real = scipy.sparse.bmat([[a_real,   a_imag],
+                                [-a_imag,  a_real]], format)
+    return a_real
