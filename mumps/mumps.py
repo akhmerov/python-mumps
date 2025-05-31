@@ -239,6 +239,7 @@ class Context:
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
+        self.analyzed = False
         self.factored = False
         self.schur_complement = None
         self.schur_indices = None
@@ -351,6 +352,7 @@ class Context:
         self.mumps_instance.icntl[7] = orderings[ordering]
         self.mumps_instance.job = 1
         t = self.call()
+        self.analyzed = True
         self.factored = False
         self.analysis_stats = AnalysisStatistics(self.mumps_instance, t)
 
@@ -400,7 +402,7 @@ class Context:
             whether the data in a may be overwritten, which can lead to a small
             performance gain. Default is False.
         """
-        if reuse_analysis and self.mumps_instance is None:
+        if reuse_analysis and not self.analyzed:
             raise ValueError("Missing analysis although reuse_analysis=True.")
         if a is not None:
             self.set_matrix(a, overwrite_a)
