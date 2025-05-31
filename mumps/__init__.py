@@ -19,6 +19,7 @@ __all__ = [
     "nullspace",
     "possible_orderings",
     "orderings",
+    "complex_to_real",
     "__version__",
     "test",
 ]
