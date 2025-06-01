@@ -245,7 +245,7 @@ def test_slogdet_with_dense(dtype, mat_size):
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(a))
     # relative comparison of large numbers
     det = la.det(a)
-    assert_almost_equal(dtype, sign, det/np.abs(det))
+    assert_almost_equal(dtype, sign, det / np.abs(det))
     assert_almost_equal(dtype, logabsdet, np.log(np.abs(det)))
 
     # test singular matrix
