@@ -732,7 +732,7 @@ class Context:
 
         return x
 
-    def det(
+    def slogdet(
         self,
         a=None,
         symmetric=False,
@@ -743,7 +743,7 @@ class Context:
         reuse_analysis=False,
     ):
         """
-        Compute the determinant of a sparse matrix using MUMPS.
+        Compute the sign and (natural) logarithm of the determinant of an array using MUMPS.
 
         Parameters
         ----------
@@ -753,8 +753,6 @@ class Context:
         symmetric : bool, optional
             If True, treat `a` as symmetric. Ignored if `a` is not set.
             Default is False.
-        dtype : type, optional
-            Output type. Default is complex.
         ordering : {'auto', 'amd', 'metis', ...}, optional
             Ordering strategy for MUMPS symbolic factorization. See MUMPS
             documentation for options. Default is 'auto'.
@@ -770,15 +768,23 @@ class Context:
 
         Returns
         -------
-        det : dtype
-            Determinant of the matrix.
+        sign : complex
+            A number representing the sign of the determinant. For a real matrix,
+            this is 1, 0, or -1. For a complex matrix, this is a complex number
+            with absolute value 1 (i.e., it is on the unit circle). If the
+            determinant is zero, then sign is 0.
+
+        logabsdet : float
+            The natural log of the absolute value of the determinant. If the
+            determinant is zero, logabsdet is -inf.
 
         Notes
         -----
-        For large matrices the determinant can be very large, causing
-        OverflowError with default data types. Setting dtype provides
-        the option to use other number representations, for example
-        `complex256`.
+        If an array has a very small or very large determinant, then a call
+        to det may overflow or underflow. This routine is more robust against
+        such issues, because it computes the logarithm of the determinant
+        rather than the determinant itself. In all cases, the determinant is
+        equal to `sign * np.exp(logabsdet)`
 
         Calculating the determinant is minimal overhead while LU factorizing,
         but requires setting a flag beforehand. It is recommended to first
@@ -790,8 +796,8 @@ class Context:
         >>> import scipy.sparse as sp
         >>> ctx = mumps.Context()
         >>> a = -sp.eye(5)
-        >>> ctx.det(a)
-        (-1+0j)
+        >>> ctx.slogdet(a)
+        ((-1+0j), np.float64(0.0))
         """
         if a is not None:
             self.set_matrix(a, overwrite_a, symmetric)
@@ -803,17 +809,20 @@ class Context:
         try:
             self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
         except MUMPSError:
-            if self.mumps_instance.infog[1] == -10:
-                # the matrix is singular
-                a = b = c = dtype(0)
+            if self.mumps_instance.infog[1] in [-6, -10]:
+                # the matrix is structurally or numerically singular
+                sign = 0
+                logabsdet = -np.inf
             else:
                 raise
         else:
             # retrieve determinant
-            a = dtype(self.mumps_instance.rinfog[12])
-            b = dtype(self.mumps_instance.rinfog[13])
-            c = dtype(self.mumps_instance.infog[34])
-        return (a + 1j * b) * 2**c
+            a = self.mumps_instance.rinfog[12]
+            b = self.mumps_instance.rinfog[13]
+            c = self.mumps_instance.infog[34]
+            sign = (a + 1j * b) / np.abs(a + 1j * b)
+            logabsdet = np.log(np.abs(a + 1j * b)) + np.log(2) * c
+        return sign, logabsdet
 
     def signature(
         self,
