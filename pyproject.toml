@@ -86,7 +86,7 @@ precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"] }
 
 [tool.pixi.tasks]
-test = { cmd = "python -P -m pytest --import-mode=importlib --pyargs mumps", clean-env = true }
+test = { cmd = "python -P -m pytest -v --import-mode=importlib --pyargs mumps", clean-env = true }
 
 [tool.pixi.feature.precommit.tasks]
 check = "pre-commit run --all-files"
