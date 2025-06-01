@@ -16,8 +16,6 @@ authors = [
     {name = "Python-MUMPS authors", email = "authors@kwant-project.org"}
 ]
 license = {file = "LICENSE"}
-homepage = "https://gitlab.kwant-project.org/kwant/python-mumps"
-repository = "https://gitlab.kwant-project.org/kwant/python-mumps"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -38,6 +36,7 @@ dynamic = ["version"]
 
 [project.urls]
 homepage = "https://gitlab.kwant-project.org/kwant/python-mumps"
+repository = "https://gitlab.kwant-project.org/kwant/python-mumps"
 
 [tool.ruff.pydocstyle]
 convention = "numpy"
