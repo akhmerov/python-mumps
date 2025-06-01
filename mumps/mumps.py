@@ -797,7 +797,7 @@ class Context:
         >>> ctx = mumps.Context()
         >>> a = -sp.eye(5)
         >>> ctx.slogdet(a)
-        ((-1+0j), np.float64(0.0))
+        (-1.0, np.float64(0.0))
         """
         if a is not None:
             self.set_matrix(a, overwrite_a, symmetric)
@@ -820,7 +820,10 @@ class Context:
             a = self.mumps_instance.rinfog[12]
             b = self.mumps_instance.rinfog[13]
             c = self.mumps_instance.infog[34]
-            sign = (a + 1j * b) / np.abs(a + 1j * b)
+            sign = a
+            if self.dtype in "cz":
+                sign += 1j * b
+            sign /= abs(sign)
             logabsdet = np.log(np.abs(a + 1j * b)) + np.log(2) * c
         return sign, logabsdet
 
