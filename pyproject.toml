@@ -1,9 +1,9 @@
 [build-system]
 requires = [
-    "cython >= 3.0.2",
-    "meson >= 1.1.0",
-    "meson-python >= 0.15.0",
-    "numpy >= 1.23",
+    "cython >= 3.1.1",
+    "meson >= 1.8.0",
+    "meson-python >= 0.18.0",
+    "numpy >= 1.25",
     "setuptools_scm",
 ]
 build-backend = "mesonpy"
@@ -27,11 +27,8 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows"
 ]
-requires-python = ">= 3.9"
-dependencies = [
-    "numpy >= 1.23",
-    "scipy >= 1.8",
-]
+requires-python = ">= 3.11"
+dependencies = [ "numpy>=1.25", "scipy>=1.11.0"]
 dynamic = ["version"]
 
 [project.urls]
@@ -59,15 +56,15 @@ python-mumps = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 mumps-seq = ">=5.7.3,<6"
-scipy = ">=1.14.1,<2"
-numpy = ">=2.1.1,<3"
-setuptools_scm = ">=8.1.0,<9"
-meson-python = ">=0.16.0,<0.17"
-compilers = ">=1.7.0,<2"
+scipy = ">=1.15.2,<2"
+numpy = ">=2.2.6,<3"
+setuptools_scm = ">=8.3.1,<9"
+meson-python = ">=0.18.0,<0.19"
+compilers = ">=1.9.0,<2"
 ninja = ">=1.12.1,<2"
-cython = ">=3.0.11,<4"
-pytest = ">=8.3.2,<9"
-git = "*"
+cython = ">=3.1.1,<4"
+pytest = ">=8.3.5,<9"
+git = ">=2.49.0,<3"
 
 [tool.pixi.feature.publish.dependencies]
 uv = ">=0.4.5"
