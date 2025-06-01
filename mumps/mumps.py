@@ -17,6 +17,7 @@ __all__ = [
     "FactorizationStatistics",
     "MUMPSError",
     "orderings",
+    "complex_to_real",
 ]
 
 import time
@@ -239,6 +240,7 @@ class Context:
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
+        self.analyzed = False
         self.factored = False
         self.schur_complement = None
         self.schur_indices = None
@@ -317,6 +319,7 @@ class Context:
         self.col = col
         self.data = data
         self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+        self.factored = False
 
     def analyze(self, a=None, ordering="auto", overwrite_a=False):
         """Perform analysis step of MUMPS.
@@ -351,6 +354,7 @@ class Context:
         self.mumps_instance.icntl[7] = orderings[ordering]
         self.mumps_instance.job = 1
         t = self.call()
+        self.analyzed = True
         self.factored = False
         self.analysis_stats = AnalysisStatistics(self.mumps_instance, t)
 
@@ -400,7 +404,7 @@ class Context:
             whether the data in a may be overwritten, which can lead to a small
             performance gain. Default is False.
         """
-        if reuse_analysis and self.mumps_instance is None:
+        if reuse_analysis and not self.analyzed:
             raise ValueError("Missing analysis although reuse_analysis=True.")
         if a is not None:
             self.set_matrix(a, overwrite_a)
@@ -425,7 +429,8 @@ class Context:
             else:
                 break
 
-        self.factored = True
+        # only set factored if we didn't throw away the factors
+        self.factored = self.mumps_instance.icntl[31] == 0
         self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
@@ -727,6 +732,168 @@ class Context:
 
         return x
 
+    def slogdet(
+        self,
+        a=None,
+        symmetric=False,
+        dtype=complex,
+        ordering="auto",
+        overwrite_a=False,
+        discard_factors=True,
+        reuse_analysis=False,
+    ):
+        """
+        Compute the sign and (natural) logarithm of the determinant of an array using MUMPS.
+
+        Parameters
+        ----------
+        a : sparse matrix, optional
+            Input sparse matrix. If `a` is not given, the matrix passed to
+            `set_matrix` is used.
+        symmetric : bool, optional
+            If True, treat `a` as symmetric. Ignored if `a` is not set.
+            Default is False.
+        ordering : {'auto', 'amd', 'metis', ...}, optional
+            Ordering strategy for MUMPS symbolic factorization. See MUMPS
+            documentation for options. Default is 'auto'.
+        overwrite_a : bool, optional
+            whether the data in `a` may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        discard_factors: bool, optional
+            whether to discard all matrix factors during factorization phase.
+            Default is True.
+        reuse_analysis : bool, optional
+            whether to reuse the analysis from the last analyze call.
+            Default is False.
+
+        Returns
+        -------
+        sign : complex
+            A number representing the sign of the determinant. For a real matrix,
+            this is 1, 0, or -1. For a complex matrix, this is a complex number
+            with absolute value 1 (i.e., it is on the unit circle). If the
+            determinant is zero, then sign is 0.
+
+        logabsdet : float
+            The natural log of the absolute value of the determinant. If the
+            determinant is zero, logabsdet is -inf.
+
+        Notes
+        -----
+        If an array has a very small or very large determinant, then a call
+        to det may overflow or underflow. This routine is more robust against
+        such issues, because it computes the logarithm of the determinant
+        rather than the determinant itself. In all cases, the determinant is
+        equal to `sign * np.exp(logabsdet)`
+
+        Calculating the determinant is minimal overhead while LU factorizing,
+        but requires setting a flag beforehand. It is recommended to first
+        run `det` and reuse the factorization for example for linear solving.
+
+        Examples
+        --------
+        >>> import mumps
+        >>> import scipy.sparse as sp
+        >>> ctx = mumps.Context()
+        >>> a = -sp.eye(5)
+        >>> ctx.slogdet(a)
+        (-1.0, np.float64(0.0))
+        """
+        if a is not None:
+            self.set_matrix(a, overwrite_a, symmetric)
+        # whether to store factorization
+        self.mumps_instance.icntl[31] = 1 if discard_factors else 0
+        # setting to calculate determinant
+        self.mumps_instance.icntl[33] = 1
+
+        try:
+            self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
+        except MUMPSError:
+            if self.mumps_instance.infog[1] in [-6, -10]:
+                # the matrix is structurally or numerically singular
+                sign = 0
+                logabsdet = -np.inf
+            else:
+                raise
+        else:
+            # retrieve determinant
+            a = self.mumps_instance.rinfog[12]
+            b = self.mumps_instance.rinfog[13]
+            c = self.mumps_instance.infog[34]
+            sign = a
+            if self.dtype in "cz":
+                sign += 1j * b
+            sign /= abs(sign)
+            logabsdet = np.log(np.abs(a + 1j * b)) + np.log(2) * c
+        return sign, logabsdet
+
+    def signature(
+        self,
+        a=None,
+        ordering="auto",
+        overwrite_a=False,
+        discard_factors=True,
+        reuse_analysis=False,
+    ):
+        """
+        Compute the signature (number of positive minus negative eigenvalues)
+        of a real symmetric sparse matrix using MUMPS.
+
+        Parameters
+        ----------
+        a : sparse matrix (optional)
+            input sparse matrix. Must be real symmetric, and non-singular.
+            If `a` is not given, the matrix passed to `set_matrix` is used,
+            if it was already factored, the factorization is reused.
+        ordering : {'auto', 'amd', 'metis', ...}, optional
+            Ordering strategy for MUMPS symbolic factorization. See MUMPS
+            documentation for options. Default is 'auto'.
+        overwrite_a : bool, optional
+            whether the data in `a` may be overwritten, which can lead to a small
+            performance gain. Default is False.
+        discard_factors: bool, optional
+            whether to discard all matrix factors during factorization phase.
+            Default is True.
+        reuse_analysis : bool, optional
+            whether to reuse the analysis from the last analyze call.
+            Default is False.
+
+        Returns
+        -------
+        sign : int
+            The signature of the matrix (number of positive minus number of
+            negative eigenvalues).
+
+        Notes
+        -----
+        Raises MUMPSError if the matrix is singular. Does no check whether
+        `a` is real symmetric, only the real part of the upper triangular part
+        of the matrix is used.
+
+        Examples
+        --------
+        >>> from python_mumps import signature
+        >>> import scipy.sparse as sp
+        >>> a = sp.eye(4)
+        >>> ctx = mumps.Context()
+        >>> ctx.signature(a)
+        4
+        """
+        if a is not None:
+            self.set_matrix(a.real, overwrite_a, symmetric=True)
+        elif not self.mumps_instance.sym == 2 or self.dtype in "cz":
+            raise ValueError(
+                "Signature can only be computed for real symmetric matrices!"
+            )
+        # whether to store factorization
+        self.mumps_instance.icntl[31] = 1 if discard_factors else 0
+        if not self.factored:
+            self.factor(reuse_analysis=reuse_analysis, ordering=ordering)
+        # "inertia" = number of negative eigenvalues is stored here
+        n_neg = self.mumps_instance.infog[12]
+        sign = self.n - 2 * n_neg
+        return sign
+
 
 def schur_complement(
     a,
@@ -911,3 +1078,47 @@ def _makemumps_index_array(a):
     a += 1  # Fortran indices
 
     return a
+
+
+def complex_to_real(a, format=None):
+    """
+    Convert a complex array into a real one of twice the size.
+
+    Parameters
+    ----------
+    a : sparse matrix
+        input sparse matrix.
+    format : str, optional
+        sparse matrix format of the output. By default the type
+        of the real part of the input matrix is used.
+
+    Returns
+    -------
+    a_real : sparse matrix
+        real matrix of double size in the format
+        `a.real 1 + a.imag i sigma_y` where multiplication is
+        meant in the tensor product sense.
+
+    Notes
+    -----
+    Useful for applying real symmetric algorithms to Hermitian
+    matrices. All eigenvalues and eigenvectors are doubled.
+
+    Examples
+    --------
+    >>> import mumps
+    >>> import scipy.sparse as sp
+    >>> N = 100
+    >>> density = 6/N
+    >>> rvs = scipy.stats.norm().rvs
+    >>> a = sp.random(N, N, density=density, format='csr', dtype=complex, rng=None, data_rvs=rvs)
+    >>> a.data *= np.exp(1j * 2 * np.pi * np.random.random(size=a.data.size))
+    >>> a += a.T.conj()
+    >>> a_real = complex_to_real(a)
+    >>> ctx = mumps.Context()
+    >>> ctx.signature(a_real) // 2
+    """
+    a_real = a.real
+    a_imag = a.imag
+    a_real = scipy.sparse.bmat([[a_real, a_imag], [-a_imag, a_real]], format)
+    return a_real
