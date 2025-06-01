@@ -54,6 +54,13 @@ platforms = ["linux-64"]
 [tool.pixi.pypi-dependencies]
 python-mumps = { path = ".", editable = true }
 
+[tool.pixi.activation.env]
+# Turn off threading to avoid slowdowns
+OPENBLAS_NUM_THREADS = "1"
+OMP_NUM_THREADS = "1"
+MKL_DYNAMIC = "FALSE"
+MKL_NUM_THREADS = "1"
+
 [tool.pixi.dependencies]
 mumps-seq = ">=5.7.3,<6"
 scipy = ">=1.15.2,<2"

@@ -2362,8 +2362,8 @@ packages:
   timestamp: 1709299922152
 - pypi: ./
   name: python-mumps
-  version: 0.0.4.dev18+gaa6cc22.d20250601
-  sha256: dda5df686d4b09b749b433a5f3b9efd5f0a807395df214912af921fdfd55ef55
+  version: 0.0.4.dev19+gf4d9274.d20250601
+  sha256: e520a193dcda02d25440f2a52695f5fc76acd22c04fb3fe2073364d895661612
   requires_dist:
   - numpy>=1.25
   - scipy>=1.11.0
