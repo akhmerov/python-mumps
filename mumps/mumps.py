@@ -844,7 +844,9 @@ class Context:
         a : sparse matrix (optional)
             input sparse matrix. Must be real symmetric, and non-singular.
             If `a` is not given, the matrix passed to `set_matrix` is used,
-            if it was already factored, the factorization is reused.
+            if it was already factored, the factorization is reused. Does not
+            check whether `a` is real symmetric, only the real part of the upper
+            triangular part of the matrix is used.
         ordering : {'auto', 'amd', 'metis', ...}, optional
             Ordering strategy for MUMPS symbolic factorization. See MUMPS
             documentation for options. Default is 'auto'.
@@ -866,9 +868,7 @@ class Context:
 
         Notes
         -----
-        Raises MUMPSError if the matrix is singular. Does no check whether
-        `a` is real symmetric, only the real part of the upper triangular part
-        of the matrix is used.
+        Raises MUMPSError if the matrix is singular.
 
         Examples
         --------
@@ -881,7 +881,8 @@ class Context:
         """
         if a is not None:
             self.set_matrix(a.real, overwrite_a, symmetric=True)
-        elif not self.mumps_instance.sym == 2 or self.dtype in "cz":
+
+        if not self.mumps_instance.sym == 2 or self.dtype in "cz":
             raise ValueError(
                 "Signature can only be computed for real symmetric matrices!"
             )
