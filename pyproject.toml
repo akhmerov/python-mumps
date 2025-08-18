@@ -3,7 +3,7 @@ requires = [
     "cython >= 3.1.1",
     "meson >= 1.8.0",
     "meson-python >= 0.18.0",
-    "numpy >= 1.25",
+    "numpy >= 2.0",
     "setuptools_scm",
 ]
 build-backend = "mesonpy"
@@ -28,7 +28,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows"
 ]
 requires-python = ">= 3.11"
-dependencies = [ "numpy>=1.25", "scipy>=1.11.0"]
+dependencies = [ "numpy>=1.26", "scipy>=1.11.0"]
 dynamic = ["version"]
 
 [project.urls]
@@ -45,6 +45,7 @@ docstring-quotes = "double"
 line-length = 88
 
 [tool.codespell]
+skip = ["*.lock"]
 ignore-words-list = "groth,coo"
 
 [tool.pixi.project]

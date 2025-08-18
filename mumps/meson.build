@@ -23,7 +23,7 @@ endforeach
 
 py.extension_module('_mumps',
     pyx_files,
-    dependencies: [np_dep, mumps_libs],
+    dependencies: [np_dep, mumps_deps],
     install: true,
     subdir: 'mumps'
 )
