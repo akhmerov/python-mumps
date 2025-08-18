@@ -8,7 +8,7 @@ project(
         'buildtype=release',
         'c_std=c99',
     ],
-    version: run_command('mumps/_version.py', check: true).stdout().strip(),
+    version: run_command('python3', '-m', 'setuptools_scm', check: true).stdout().strip(),
 )
 
 py = import('python').find_installation(pure: false)

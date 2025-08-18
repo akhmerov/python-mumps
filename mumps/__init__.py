@@ -1,15 +1,22 @@
+# Retrieve the installed package version via PEP 566 metadata.
+from importlib.metadata import PackageNotFoundError, version
+
 from .mumps import (
-    Context,
-    MUMPSError,
     AnalysisStatistics,
+    Context,
     FactorizationStatistics,
-    schur_complement,
-    nullspace,
-    possible_orderings,
-    orderings,
+    MUMPSError,
     complex_to_real,
+    nullspace,
+    orderings,
+    possible_orderings,
+    schur_complement,
 )
-from ._version import __version__
+
+try:
+    __version__ = version("python-mumps")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
 
 __all__ = [
     "Context",
