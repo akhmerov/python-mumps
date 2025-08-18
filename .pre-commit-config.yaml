@@ -15,7 +15,7 @@ repos:
     rev: v2.3.0
     hooks:
       - id: codespell
-        stages: [commit]
+        stages: [pre-commit]
         additional_dependencies:
           - tomli
 
