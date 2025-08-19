@@ -48,4 +48,4 @@ foreach mumps_name : mumps_names
     error('MUMPS dependency not found: ' + mumps_name + '. Also tried short name if applicable.')
 endforeach
 
-subdir('mumps')
+subdir('src/mumps')
