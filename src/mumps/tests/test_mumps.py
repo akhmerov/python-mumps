@@ -14,6 +14,7 @@ import scipy.linalg as la
 
 from mumps import Context, MUMPSError, schur_complement, nullspace, complex_to_real
 from ._test_utils import _Random
+from mpi4py import MPI
 
 # Decimal places of precision per datatype. These limits have been determined
 # heuristically by inspecting the upper error bound reported by MUMPS for
@@ -44,7 +45,8 @@ def test_lu_with_dense(dtype, mat_size):
     bmat = rand.randmat(mat_size, mat_size, dtype)
     bvec = rand.randvec(mat_size, dtype)
 
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     ctx.factor(sp.coo_matrix(a))
 
     xvec = ctx.solve(bvec)
@@ -81,7 +83,8 @@ def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
 
     bvec = rand.randvec(mat_size, dtype)
 
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     ctx.set_matrix(a, symmetric=symmetric_matrix)
     ctx.schur(range(3))
 
@@ -95,17 +98,19 @@ def test_factor_error(dtype):
     """Test that an error is raised if factor is asked to reuse missing analysis."""
     a = sp.identity(10, dtype=dtype)
     with pytest.raises(ValueError):
-        Context().factor(a, reuse_analysis=True)
+        comm = MPI.COMM_WORLD
+        Context(comm=comm).factor(a, reuse_analysis=True)
 
-    Context().set_matrix(a)
+    Context(comm=comm).set_matrix(a)
     with pytest.raises(ValueError):
-        Context().factor(reuse_analysis=True)
+        Context(comm=comm).factor(reuse_analysis=True)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 def test_error_minus_19(dtype):
     """Test if MUMPSError -19 is properly caught by increasing memory"""
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
 
     a = sp.eye(5000, dtype=dtype)
 
@@ -123,7 +128,7 @@ def test_error_minus_19(dtype):
 
     # This call should not raise any errors as
     # it would successfully allocate memory
-    Context().factor(a)
+    Context(comm=comm).factor(a)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -206,7 +211,8 @@ def test_one_by_one(dtype):
     This is a regression test for
     https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/18
     """
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     ctx.factor(sp.eye(1, dtype=dtype))
     assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
 
@@ -215,7 +221,8 @@ def test_one_by_one(dtype):
 def test_zero_size_rhs(dtype):
     """Test that a 0xn rhs can be solved."""
     a = np.random.randn(10, 10).astype(dtype)
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
     assert_almost_equal(dtype, ctx.solve(rhs), rhs)
@@ -229,7 +236,8 @@ def test_symmetric_matrix(dtype):
     if np.iscomplexobj(a):
         a += (1j * np.random.randn(n, n)).astype(dtype)
     a += a.T
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     ctx.set_matrix(a, symmetric=True)
     ctx.factor()
     rhs = np.random.randn(n, 1).astype(dtype)
@@ -241,7 +249,8 @@ def test_symmetric_matrix(dtype):
 def test_slogdet_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(a))
     # relative comparison of large numbers
     det = la.det(a)
@@ -251,7 +260,7 @@ def test_slogdet_with_dense(dtype, mat_size):
     # test singular matrix
     b = np.zeros((mat_size + 1, mat_size + 1), dtype)
     b[:mat_size][:, :mat_size] = a
-    ctx = Context()
+    ctx = Context(comm=comm)
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(b))
     assert_almost_equal(dtype, sign, 0)
     assert_almost_equal(dtype, logabsdet, -np.inf)
@@ -270,6 +279,7 @@ def test_signature_with_dense(dtype, mat_size):
         a = complex_to_real(sp.csr_matrix(a))
         sign_ref *= 2
 
-    ctx = Context()
+    comm = MPI.COMM_WORLD
+    ctx = Context(comm=comm)
     sign = ctx.signature(sp.csr_matrix(a))
     assert sign == sign_ref

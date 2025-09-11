@@ -227,7 +227,7 @@ class Context:
 
     """
 
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False,comm=None):
         """Init the Context class
 
         Parameters
@@ -236,7 +236,14 @@ class Context:
         verbose : True or False
             control whether MUMPS prints lots of internal statistics
             and debug information to screen.
+        comm : MPI Communicator or None
+            use MPI_COMM_WORLD for enabling MPI computation
         """
+        self.comm = comm
+        if self.comm:
+            self.myid = comm.rank
+        else:
+            self.myid = 0
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
@@ -310,7 +317,7 @@ class Context:
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
         sym = 2 if symmetric else 0
         if self.dtype != dtype:
-            self.mumps_instance = getattr(_mumps, dtype + "mumps")(self.verbose, sym)
+            self.mumps_instance = getattr(_mumps, dtype + "mumps")(self.verbose, sym,self.comm)
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13
@@ -318,7 +325,8 @@ class Context:
         self.row = row
         self.col = col
         self.data = data
-        self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+        if self.myid == 0:
+            self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
         self.factored = False
 
     def analyze(self, a=None, ordering="auto", overwrite_a=False):
@@ -448,7 +456,6 @@ class Context:
                 "compatible with the dtype of the "
                 "linear system"
             )
-
         self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
         self.mumps_instance.set_dense_rhs(x)
         self.mumps_instance.job = 3

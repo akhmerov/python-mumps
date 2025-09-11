@@ -99,13 +99,16 @@ cdef class {{p.lower()}}mumps:
 
     cdef PyThread_type_lock lock
 
-    def __cinit__(self, verbose=False, sym=0):
+    def __cinit__(self, verbose=False, sym=0, comm=None):
         self.lock = PyThread_allocate_lock()
 
         self.params.job = -1
         self.params.sym = sym
         self.params.par = 1
-        self.params.comm_fortran = -987654  # MPI_COMM_WORLD, according to docs
+        if comm:
+            self.params.comm_fortran = comm.py2f()
+        else:
+            self.params.comm_fortran = -987654  # MPI_COMM_WORLD, according to docs
 
         with nogil:
             mumps.{{p.lower()}}mumps_c(&self.params)
@@ -117,7 +120,7 @@ cdef class {{p.lower()}}mumps:
         self.rinfo = make_{{p.lower()}}mumps_real_array(self.params.rinfo)
         self.rinfog = make_{{p.lower()}}mumps_real_array(self.params.rinfog)
 
-    def __init__(self, verbose=False, sym=0):
+    def __init__(self, verbose=False, sym=0, comm=None):
         # no diagnostic output (MUMPS is very verbose normally)
         if not verbose:
             self.icntl[1] = 0
