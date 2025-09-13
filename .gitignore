@@ -46,3 +46,6 @@ docs/_build/
 # pixi environments
 .pixi
 *.egg-info
+
+# Downloaded MUMPS sources for development
+mumps_sources/
