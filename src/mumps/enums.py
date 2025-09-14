@@ -3230,6 +3230,504 @@ class INFOG(RawArray):
     def __init__(self, size: int = LEN_INFOG):
         super().__init__(size, default=0)
 
+    # === Begin MUMPS snippet: INFOG(1) page 102 from userguide_5.8.1.txt:5666-5669 ===
+    # INFOG(1) is 0 if the last call to MUMPS was successful, negative if an error occurred (see Section 8),
+    #    or positive if a warning is returned. In particular, after successfully saving or restoring an instance
+    #    (call to MUMPS with JOB= 7 or JOB= 8), INFOG(1) will be 0 even if INFOG(1) was different
+    #    from 0 at the moment of saving the MUMPS instance to disk.
+    # === End MUMPS snippet ===
+
+    @param(index=1, page=102)
+    class param_1:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(2) page 102 from userguide_5.8.1.txt:5670-5693 ===
+    #  INFOG(2) holds additional information about the error or the warning.
+    # The difference between INFOG(1:2) and INFO(1:2) is that INFOG(1:2) is identical on all processors. It
+    # has the value of INFO(1:2) of the processor which returned with the most negative INFO(1) value. For
+    # example, if processor p returns with INFO(1)=-13, and INFO(2)=10000, then all other processors will
+    # return with INFOG(1)=-13 and INFOG(2)=10000, and with INFO(1)=-1 and INFO(2)=p.
+    #       INFOG(3) - after analysis: total (sum over all processors) estimated real/complex workspace to
+    #          store the factors, assuming the factors are stored in full-rank format (ICNTL(35)=0 or 3). If
+    #          INFOG(3) is negative, then its absolute value corresponds to millions of real/complex entries
+    #          used to store the factor matrices. Assuming that the factors will be stored in full-rank format during
+    #          the factorization (ICNTL(35)=0 or 3), a rough estimation of the size of the disk space in bytes
+    #          of the files written all processors can be obtained by multiplying INFOG(3) (or its absolute value
+    #          multiplied by 1 million when negative) by 4, 8, 8, or 16 for single precision, double precision,
+    #          single complex, and double complex arithmetics, respectively. See also RINFOG(15).
+    #          Note that, when all factors are discarded (ICNTL(31)=1), INFOG(3) corresponds to the factors
+    #          storage if factors were not discarded (rather than 0). However, if only the L factor is discarded
+    #          (case of forward substitution during factorization, ICNTL(32)=1, or case of ICNTL(31)=2),
+    #          then INFO(3) corresponds to the factor storage excluding L.
+    #          The effective size of the real/complex space needed will be returned in INFOG(9) (see below),
+    #          but only after the factorization. Furthermore, after an out-of-core factorization, the size of the disk
+    #          space for the files written by all processors is returned in RINFOG(16).
+    # === End MUMPS snippet ===
+
+    @param(index=2, page=102)
+    class param_2:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(4) page 103 from userguide_5.8.1.txt:5694-5696 ===
+    # INFOG(4) - after analysis: total (sum over all processors) estimated integer workspace to store the
+    #    factor matrices (assuming a full-rank storage of the factors). If INFOG(4) is negative, then its
+    #    absolute value corresponds to millions of integer entries used to store the factor matrices.
+    # === End MUMPS snippet ===
+
+    @param(index=4, page=103)
+    class param_4:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(5) page 103 from userguide_5.8.1.txt:5697-5702 ===
+    # INFOG(5) - after analysis: estimated maximum front size in the complete tree.
+    # INFOG(6) - after analysis: number of nodes in the complete tree.
+    # INFOG(7) - after analysis: the ordering method actually used. The returned value will depend on
+    #    the type of analysis performed, e.g. sequential or parallel (see INFOG(32)). Please refer to
+    #    ICNTL(7) and ICNTL(29) for more details on the ordering methods available in sequential and
+    #    parallel analysis respectively.
+    # === End MUMPS snippet ===
+
+    @param(index=5, page=103)
+    class param_5:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(8) page 103 from userguide_5.8.1.txt:5703-5706 ===
+    # INFOG(8) - after analysis: structural symmetry in percent (100 : symmetric, 0 : fully unsymmetric)
+    #    of the (permuted) matrix, -1 indicates that the structural symmetry was not computed (which
+    #    will be the case if the input matrix is in elemental form or if analysis by block was performed
+    #    (ICNTL(15))).
+    # === End MUMPS snippet ===
+
+    @param(index=8, page=103)
+    class param_8:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(9) page 103 from userguide_5.8.1.txt:5707-5710 ===
+    # INFOG(9) - after factorization: total (sum over all processors) real/complex workspace to store the
+    #    factor matrices, possibly including low-rank factor matrices (ICNTL(35)=2). If negative, then
+    #    the absolute value corresponds to the size in millions of real/complex entries used to store the factor
+    #    matrices.
+    # === End MUMPS snippet ===
+
+    @param(index=9, page=103)
+    class param_9:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(10) page 103 from userguide_5.8.1.txt:5711-5713 ===
+    # INFOG(10) - after factorization: total (sum over all processors) integer workspace to store the factor
+    #    matrices. If negative the absolute value corresponds to millions of integer entries in the integer
+    #    workspace to store the factor matrices.
+    # === End MUMPS snippet ===
+
+    @param(index=10, page=103)
+    class param_10:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(11) page 103 from userguide_5.8.1.txt:5714-5725 ===
+    # INFOG(11) - after factorization: order of largest frontal matrix.
+    # INFOG(12) - after factorization: total number of off-diagonal pivots if SYM=0 or total number of
+    #    negative pivots (real arithmetic) if SYM=1 or 2. If ICNTL(13)=0 (the default) this excludes
+    #    pivots from the parallel root node treated by ScaLAPACK. (This means that the user should
+    #    set ICNTL(13) to a positive value, say 1, or use a single processor in order to get the exact
+    #    number of off-diagonal or negative pivots rather than a lower bound.) If rank-revealing option
+    #    is on (ICNTL(56)=1), the inertia might be incorrect if INFO(1) ≥ 16. Furthermore, when
+    #    ICNTL(24) is set to 1 and SYM=1 or 2, or when ICNTL(56)=1, INFOG(12) excludes the
+    #    null13 pivots, even if their sign is negative. In other words, a pivot cannot be both null and negative.
+    #    Note that if SYM=1 or 2, INFOG(12) will be 0 for complex symmetric matrices. For real
+    #    symmetric matrices, see also INFOG(40), provides the number of negative pivots among the
+    #    null pivots detected when ICNTL(24) (and/or ICNTL(56))) is activated.
+    # === End MUMPS snippet ===
+
+    @param(index=11, page=103)
+    class param_11:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(13) page 103 from userguide_5.8.1.txt:5726-5737 ===
+    #       INFOG(13) - after factorization: total number of delayed pivots. A variable of the original matrix may
+    #          be delayed several times between successive frontal matrices. In that case, it accounts for several
+    #          delayed pivots. A large number (more that 10% of the order of the matrix) indicates numerical
+    # 13 i.e., whose magnitude is smaller than the tolerance defined by CNTL(3).
+    #     problems. Settings related to numerical preprocessing (ICNTL(6),ICNTL(8), ICNTL(12))
+    #     might then be modified by the user.
+    # === End MUMPS snippet ===
+
+    @param(index=13, page=103)
+    class param_13:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(14) page 104 from userguide_5.8.1.txt:5738-5743 ===
+    # INFOG(14) - after factorization: total number of memory compresses.
+    # INFOG(15) - after solution: number of steps of iterative refinement.
+    # INFOG(16) and INFOG(17) - after analysis: estimated size (in million of bytes) of all MUMPS
+    #    internal data for running full-rank factorization in-core for a given value of ICNTL(14).
+    #        • —– (16) : max over all processors
+    #        • —– (17) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=14, page=104)
+    class param_14:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(18) page 104 from userguide_5.8.1.txt:5744-5749 ===
+    # INFOG(18) and INFOG(19) - after factorization: size in millions of bytes of all MUMPS internal data
+    #    allocated during factorization.
+    #        • —– (18) : max over all processors
+    #        • —– (19) : sum over all processors.
+    #     Note that in the case where WK USER is provided, the memory allocated by the user for the local
+    #     arrays WK USER is not counted in INFOG(18) and INFOG(19).
+    # === End MUMPS snippet ===
+
+    @param(index=18, page=104)
+    class param_18:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(19) page 104 from userguide_5.8.1.txt:5744-5749 ===
+    # INFOG(18) and INFOG(19) - after factorization: size in millions of bytes of all MUMPS internal data
+    #    allocated during factorization.
+    #        • —– (18) : max over all processors
+    #        • —– (19) : sum over all processors.
+    #     Note that in the case where WK USER is provided, the memory allocated by the user for the local
+    #     arrays WK USER is not counted in INFOG(18) and INFOG(19).
+    # === End MUMPS snippet ===
+
+    @param(index=19, page=104)
+    class param_19:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(20) page 104 from userguide_5.8.1.txt:5750-5753 ===
+    # INFOG(20) - after analysis: estimated number of entries in the factors assuming full-rank factorization.
+    #    If negative the absolute value corresponds to millions of entries in the factors. Note that in the
+    #    unsymmetric case, INFOG(20)=INFOG(3). In the symmetric case, however, INFOG(20) <
+    #    INFOG(3).
+    # === End MUMPS snippet ===
+
+    @param(index=20, page=104)
+    class param_20:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(21) page 104 from userguide_5.8.1.txt:5754-5759 ===
+    # INFOG(21) and INFOG(22) - after factorization: size in millions of bytes of memory effectively
+    #    used during factorization.
+    #        • —– (21) : max over all processors
+    #        • —– (22) : sum over all processors.
+    #     This includes the memory effectively used in the local workarrays WK USER, in the case where the
+    #     arrays WK USER are provided.
+    # === End MUMPS snippet ===
+
+    @param(index=21, page=104)
+    class param_21:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(22) page 104 from userguide_5.8.1.txt:5754-5759 ===
+    # INFOG(21) and INFOG(22) - after factorization: size in millions of bytes of memory effectively
+    #    used during factorization.
+    #        • —– (21) : max over all processors
+    #        • —– (22) : sum over all processors.
+    #     This includes the memory effectively used in the local workarrays WK USER, in the case where the
+    #     arrays WK USER are provided.
+    # === End MUMPS snippet ===
+
+    @param(index=22, page=104)
+    class param_22:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(23) page 104 from userguide_5.8.1.txt:5760-5767 ===
+    # INFOG(23) - after analysis: value of ICNTL(6) effectively used.
+    # INFOG(24) - after analysis: value of ICNTL(12) effectively used.
+    # INFOG(25) - after factorization: number of tiny pivots (number of pivots modified by static pivoting)
+    # INFOG(26) and INFOG(27) - after analysis: estimated size (in millions of bytes) of all MUMPS
+    #    internal data for running full-rank factorization out-of-core (ICNTL(22)̸= 0) for a given value
+    #    of ICNTL(14).
+    #        • —– (26) : max over all processors
+    #        • —– (27) : sum over all processors
+    # === End MUMPS snippet ===
+
+    @param(index=23, page=104)
+    class param_23:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(28) page 104 from userguide_5.8.1.txt:5768-5770 ===
+    # INFOG(28) - after factorization: size of the null space, resulting from detection of null pivot rows
+    #    (see ICNTL(24) and CNTL(3)) and of singularities on the root node (see ICNTL(56) and
+    #    CNTL(3)).
+    # === End MUMPS snippet ===
+
+    @param(index=28, page=104)
+    class param_28:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(29) page 104 from userguide_5.8.1.txt:5771-5775 ===
+    # INFOG(29) - after factorization: effective number of entries in the factor matrices (sum over all
+    #    processors) assuming that full-rank factorization has been performed. If negative, then the absolute
+    #    value corresponds to millions of entries in the factors. Note that in case the factor matrices are
+    #    stored full-rank (ICNTL(35)=0 or 3), we have INFOG(29)=INFOG(9) in the unsymmetric case
+    #    and INFOG(29) ≤ INFOG(9) in the symmetric case.
+    # === End MUMPS snippet ===
+
+    @param(index=29, page=104)
+    class param_29:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(30) page 104 from userguide_5.8.1.txt:5776-5779 ===
+    # INFOG(30) and INFOG(31) - after solution: size in millions of bytes of memory effectively used
+    #    during solution phase:
+    #        • —– (30) : max over all processors
+    #        • —– (31) : sum over all processors
+    # === End MUMPS snippet ===
+
+    @param(index=30, page=104)
+    class param_30:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(31) page 104 from userguide_5.8.1.txt:5776-5779 ===
+    # INFOG(30) and INFOG(31) - after solution: size in millions of bytes of memory effectively used
+    #    during solution phase:
+    #        • —– (30) : max over all processors
+    #        • —– (31) : sum over all processors
+    # === End MUMPS snippet ===
+
+    @param(index=31, page=104)
+    class param_31:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(32) page 104 from userguide_5.8.1.txt:5780-5787 ===
+    # INFOG(32) - after analysis: the type of analysis actually done (see ICNTL(28)). INFOG(32) has
+    #    value 1 if sequential analysis was performed, in which case INFOG(7) returns the sequential
+    #    ordering option used, as defined by ICNTL(7). INFOG(32) has value 2 if parallel analysis
+    #    was performed, in which case INFOG(7) returns the parallel ordering used, as defined by
+    #    ICNTL(29).
+    # === End MUMPS snippet ===
+
+    @param(index=32, page=104)
+    class param_32:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(33) page 105 from userguide_5.8.1.txt:5789-5793 ===
+    # INFOG(33): effective value used for ICNTL(8). It is set both after the analysis and the factorization
+    #    phases. If ICNTL(8)=77 on entry to the analysis and INFOG(33) has value 77 on exit from the
+    #    analysis, then no scaling was computed during the analysis and the automatic decision will only be
+    #    done during factorization (except if the user modifies ICNTL(8) to set a specific option on entry
+    #    to the factorization).
+    # === End MUMPS snippet ===
+
+    @param(index=33, page=105)
+    class param_33:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(34) page 105 from userguide_5.8.1.txt:5794-5797 ===
+    # INFOG(34): if the computation of the determinant was requested (see ICNTL(33)), INFOG(34)
+    #    contains the exponent of the determinant. See also RINFOG(12) and RINFOG(13): the
+    #    determinant is obtained by multiplying (RINFOG(12), RINFOG(13)) by 2 to the power
+    #    INFOG(34).
+    # === End MUMPS snippet ===
+
+    @param(index=34, page=105)
+    class param_34:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(35) page 105 from userguide_5.8.1.txt:5798-5801 ===
+    # INFOG(35) - after factorization: effective number of entries in the factors (sum over all processors)
+    #    taking into account BLR factor compression. If negative, then the absolute value corresponds
+    #    to millions of entries in the factors. It is equal to INFOG(29) when BLR functionality (see
+    #    ICNTL(35)) is not activated or leads to no compression.
+    # === End MUMPS snippet ===
+
+    @param(index=35, page=105)
+    class param_35:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(36) page 105 from userguide_5.8.1.txt:5802-5810 ===
+    # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors for a
+    #    given value of ICNTL(14) and ICNTL(38).
+    #        • in-core
+    #            . —– (36) : max over all processors
+    #            . —– (37) : sum over all processors.
+    #        • out-of-core
+    #            . —– (38) : max over all processors
+    #            . —– (39) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=36, page=105)
+    class param_36:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(37) page 105 from userguide_5.8.1.txt:5802-5810 ===
+    # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors for a
+    #    given value of ICNTL(14) and ICNTL(38).
+    #        • in-core
+    #            . —– (36) : max over all processors
+    #            . —– (37) : sum over all processors.
+    #        • out-of-core
+    #            . —– (38) : max over all processors
+    #            . —– (39) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=37, page=105)
+    class param_37:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(38) page 105 from userguide_5.8.1.txt:5802-5810 ===
+    # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors for a
+    #    given value of ICNTL(14) and ICNTL(38).
+    #        • in-core
+    #            . —– (36) : max over all processors
+    #            . —– (37) : sum over all processors.
+    #        • out-of-core
+    #            . —– (38) : max over all processors
+    #            . —– (39) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=38, page=105)
+    class param_38:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(39) page 105 from userguide_5.8.1.txt:5802-5810 ===
+    # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors for a
+    #    given value of ICNTL(14) and ICNTL(38).
+    #        • in-core
+    #            . —– (36) : max over all processors
+    #            . —– (37) : sum over all processors.
+    #        • out-of-core
+    #            . —– (38) : max over all processors
+    #            . —– (39) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=39, page=105)
+    class param_39:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(40) page 105 from userguide_5.8.1.txt:5811-5819 ===
+    # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors and
+    #    low-rank contribution blocks for a given value of ICNTL(14), ICNTL(38) and ICNTL(39).
+    #        • in-core
+    #            . —– (40) : value on the most memory consuming processor.
+    #            . —– (41) : sum over all processors.
+    #        • out-of-core
+    #            . —– (42) : value on the most memory consuming processor.
+    #            . —– (43) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=40, page=105)
+    class param_40:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(41) page 105 from userguide_5.8.1.txt:5811-5819 ===
+    # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors and
+    #    low-rank contribution blocks for a given value of ICNTL(14), ICNTL(38) and ICNTL(39).
+    #        • in-core
+    #            . —– (40) : value on the most memory consuming processor.
+    #            . —– (41) : sum over all processors.
+    #        • out-of-core
+    #            . —– (42) : value on the most memory consuming processor.
+    #            . —– (43) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=41, page=105)
+    class param_41:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(42) page 105 from userguide_5.8.1.txt:5811-5819 ===
+    # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors and
+    #    low-rank contribution blocks for a given value of ICNTL(14), ICNTL(38) and ICNTL(39).
+    #        • in-core
+    #            . —– (40) : value on the most memory consuming processor.
+    #            . —– (41) : sum over all processors.
+    #        • out-of-core
+    #            . —– (42) : value on the most memory consuming processor.
+    #            . —– (43) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=42, page=105)
+    class param_42:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(43) page 105 from userguide_5.8.1.txt:5811-5819 ===
+    # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank factors and
+    #    low-rank contribution blocks for a given value of ICNTL(14), ICNTL(38) and ICNTL(39).
+    #        • in-core
+    #            . —– (40) : value on the most memory consuming processor.
+    #            . —– (41) : sum over all processors.
+    #        • out-of-core
+    #            . —– (42) : value on the most memory consuming processor.
+    #            . —– (43) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=43, page=105)
+    class param_43:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(44) page 105 from userguide_5.8.1.txt:5820-5828 ===
+    # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank low-rank
+    #    contribution blocks only for a given value of ICNTL(14) and ICNTL(39).
+    #        • in-core
+    #            . —– (44) : value on the most memory consuming processor.
+    #            . —– (45) : sum over all processors.
+    #        • out-of-core
+    #            . —– (46) : value on the most memory consuming processor.
+    #            . —– (47) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=44, page=105)
+    class param_44:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(45) page 105 from userguide_5.8.1.txt:5820-5828 ===
+    # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank low-rank
+    #    contribution blocks only for a given value of ICNTL(14) and ICNTL(39).
+    #        • in-core
+    #            . —– (44) : value on the most memory consuming processor.
+    #            . —– (45) : sum over all processors.
+    #        • out-of-core
+    #            . —– (46) : value on the most memory consuming processor.
+    #            . —– (47) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=45, page=105)
+    class param_45:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(46) page 105 from userguide_5.8.1.txt:5820-5828 ===
+    # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank low-rank
+    #    contribution blocks only for a given value of ICNTL(14) and ICNTL(39).
+    #        • in-core
+    #            . —– (44) : value on the most memory consuming processor.
+    #            . —– (45) : sum over all processors.
+    #        • out-of-core
+    #            . —– (46) : value on the most memory consuming processor.
+    #            . —– (47) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=46, page=105)
+    class param_46:
+        "Placeholder parameter, not processed yet."
+
+    # === Begin MUMPS snippet: INFOG(47) page 105 from userguide_5.8.1.txt:5820-5828 ===
+    # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
+    #    of bytes) of all MUMPS internal data for running low-rank factorization with low-rank low-rank
+    #    contribution blocks only for a given value of ICNTL(14) and ICNTL(39).
+    #        • in-core
+    #            . —– (44) : value on the most memory consuming processor.
+    #            . —– (45) : sum over all processors.
+    #        • out-of-core
+    #            . —– (46) : value on the most memory consuming processor.
+    #            . —– (47) : sum over all processors.
+    # === End MUMPS snippet ===
+
+    @param(index=47, page=105)
+    class param_47:
+        "Placeholder parameter, not processed yet."
+
 
 # -------------
 # RINFO members

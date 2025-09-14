@@ -91,8 +91,21 @@ USERGUIDE_PDF_NAME_TMPL = "userguide_{ver}.pdf"
 LEN_CNTL = 15
 LEN_ICNTL = 60
 LEN_INFO = 80
+LEN_INFOG = 80
 LEN_RINFO = 40
 LEN_RINFOG = 40
+
+# Canonical array names and derived helpers
+ARRAY_NAMES: tuple[str, ...] = ("ICNTL", "CNTL", "INFO", "INFOG", "RINFO", "RINFOG")
+LEN_BY_ARRAY: dict[str, int] = {
+    "ICNTL": LEN_ICNTL,
+    "CNTL": LEN_CNTL,
+    "INFO": LEN_INFO,
+    "INFOG": LEN_INFOG,
+    "RINFO": LEN_RINFO,
+    "RINFOG": LEN_RINFOG,
+}
+ARRAYS_RX = "|".join(ARRAY_NAMES)
 
 
 # -------------
@@ -405,6 +418,156 @@ def write_text(path: Path, data: str) -> None:
     path.write_text(data, encoding="utf-8")
 
 
+# --------------------
+# shared text utilities
+# --------------------
+
+
+def build_page_map(lines: List[str]) -> List[Optional[int]]:
+    """Given document lines, return page number per line by tracking simple page-number lines.
+
+    A page line is like '106' on its own (optionally surrounded by spaces). Form feeds are ignored here;
+    callers can treat them as page breaks if needed.
+    """
+    page_at_line: List[Optional[int]] = [None] * len(lines)
+    current_page: Optional[int] = None
+    page_re = re.compile(r"^\s*(\d{1,4})\s*$")
+    for i, ln in enumerate(lines):
+        m = page_re.match(ln)
+        if m:
+            try:
+                current_page = int(m.group(1))
+            except Exception:
+                pass
+        page_at_line[i] = current_page
+    return page_at_line
+
+
+def clean_and_dedent_block(slice_lines: List[str]) -> List[str]:
+    """Remove standalone page-number/formfeed lines and surrounding blanks, trim edges, left-dedent.
+
+    This mirrors the logic used for parameter snippets and for section 5.9/8 contextual blocks.
+    """
+    page_re2 = re.compile(r"^\s*(\d{1,4})\s*$")
+    ff_re2 = re.compile(r"^\f\s*$")
+
+    def is_blank(s: str) -> bool:
+        return s.strip() == ""
+
+    def is_page_line(s: str) -> bool:
+        return bool(page_re2.match(s)) or bool(ff_re2.match(s))
+
+    n = len(slice_lines)
+    to_drop: set[int] = set()
+    i = 0
+    while i < n:
+        if is_page_line(slice_lines[i]):
+            a = i - 1
+            while a >= 0 and is_blank(slice_lines[a]):
+                to_drop.add(a)
+                a -= 1
+            to_drop.add(i)
+            b = i + 1
+            while b < n and is_blank(slice_lines[b]):
+                to_drop.add(b)
+                b += 1
+            i = b
+            continue
+        i += 1
+    cleaned = [slice_lines[k] for k in range(n) if k not in to_drop]
+    # Trim leading/trailing blanks
+    start = 0
+    while start < len(cleaned) and is_blank(cleaned[start]):
+        start += 1
+    end = len(cleaned)
+    while end > start and is_blank(cleaned[end - 1]):
+        end -= 1
+    block = cleaned[start:end]
+
+    def leading_spaces(s: str) -> int:
+        n = 0
+        while n < len(s) and s[n] == " ":
+            n += 1
+        return n
+
+    non_empty = [ln for ln in block if ln.strip()]
+    common = min((leading_spaces(ln) for ln in non_empty), default=0)
+    if common > 0:
+        block = [ln[common:] if len(ln) >= common else ln for ln in block]
+    return block
+
+
+def resolve_userguide_path_text_pagemap() -> (
+    tuple[Optional[Path], Optional[str], List[Optional[int]]]
+):
+    """Resolve userguide text via existing helper and return (path, text, page_map)."""
+    ug_path, ug_text = _resolve_userguide_text()
+    if not ug_text:
+        return ug_path, None, []
+    ug_lines = ug_text.splitlines()
+    return ug_path, ug_text, build_page_map(ug_lines)
+
+
+def find_body_section_span(
+    lines_all: List[str], start_rx: str, end_rx_list: List[str]
+) -> tuple[int, int]:
+    """Find body section span starting at header matching start_rx, skipping TOC entries.
+
+    Heuristic identical to the nested _find_section_span used previously.
+    """
+    start_pat = re.compile(start_rx)
+    end_pats = [re.compile(rx) for rx in end_rx_list]
+    candidates: list[int] = []
+    for i, ln in enumerate(lines_all):
+        if start_pat.match(ln):
+            candidates.append(i)
+    if not candidates:
+        return -1, -1
+
+    def looks_like_toc(s: str) -> bool:
+        if re.search(r"\.[\s\.]*\d\s*$", s):
+            return True
+        if re.search(r"\s\d{1,4}\s*$", s) and (". . ." in s or ".." in s):
+            return True
+        return False
+
+    good = [i for i in candidates if not looks_like_toc(lines_all[i])]
+    start = good[0] if good else candidates[-1]
+    end = len(lines_all)
+    for j in range(start + 1, len(lines_all)):
+        ln = lines_all[j]
+        for ep in end_pats:
+            if ep.match(ln):
+                end = j
+                break
+        if end != len(lines_all):
+            break
+    return start, end
+
+
+def make_snippet_comment_block(
+    title: str,
+    src_name: Optional[str],
+    page: Optional[int],
+    a: int,
+    b: int,
+    slice_lines: List[str],
+) -> List[str]:
+    meta_parts = []
+    if page:
+        meta_parts.append(f"page {page}")
+    if src_name:
+        meta_parts.append(f"from {src_name}:{a+1}-{b}")
+    meta = (" " + " ".join(meta_parts)) if meta_parts else ""
+    begin = f"# === Begin MUMPS snippet: {title}{meta} ==="
+    end = "# === End MUMPS snippet ==="
+    out = [begin]
+    for ln in slice_lines:
+        out.append(f"# {ln}".rstrip())
+    out.append(end)
+    return out
+
+
 # (Removed several unused comment helpers during cleanup.)
 
 
@@ -434,19 +597,9 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
     lines = text.splitlines()
 
     # Preprocess page numbers: map each line to the current page number if known
-    page_at_line: List[Optional[int]] = [None] * len(lines)
-    current_page: Optional[int] = None
+    page_at_line: List[Optional[int]] = build_page_map(lines)
     page_re = re.compile(r"^\s*(\d{1,4})\s*$")
     ff_re = re.compile(r"^\f\s*$")  # form feed on its own line
-    for i, ln in enumerate(lines):
-        m = page_re.match(ln)
-        if m:
-            try:
-                current_page = int(m.group(1))
-            except Exception:
-                pass
-        # associate current page to this line
-        page_at_line[i] = current_page
 
     # Section boundaries (robust to minor spacing variations)
     def _find_first(pattern: str) -> Optional[int]:
@@ -492,11 +645,7 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
 
     # Define scan ranges per array to avoid incidental mentions elsewhere in the guide
     ranges_by_array: dict[str, List[tuple[int, int]]] = {
-        "ICNTL": [],
-        "CNTL": [],
-        "INFO": [],
-        "RINFO": [],
-        "RINFOG": [],
+        name: [] for name in ARRAY_NAMES
     }
     # ICNTL in 6.1
     if i_icntl is not None:
@@ -517,14 +666,15 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
     if i_info2 is not None:
         end = i_err if i_err is not None else nlines
         ranges_by_array["RINFOG"].append((i_info2, end))
+        ranges_by_array["INFOG"].append((i_info2, end))
 
     # Primary heading detection at BOL, allowing leading spaces
     # Allow ranges like ICNTL(52-55) and single indices, both at BOL for headings and anywhere on the line for expansion
     head_bol = re.compile(
-        r"^(?P<pre>\s*(?:[•\-*]\s*)?)(?P<arr>CNTL|ICNTL|INFO|RINFOG|RINFO)\s*\(\s*(?P<idxtok>\d+(?:\s*-\s*\d+)?)\s*\)"
+        rf"^(?P<pre>\s*(?:[•\-*]\s*)?)(?P<arr>{ARRAYS_RX})\s*\(\s*(?P<idxtok>\d+(?:\s*-\s*\d+)?)\s*\)"
     )
     token_anywhere = re.compile(
-        r"\b(?P<arr>CNTL|ICNTL|INFO|RINFOG|RINFO)\s*\(\s*(?P<idxtok>\d+(?:\s*-\s*\d+)?)\s*\)"
+        rf"\b(?P<arr>{ARRAYS_RX})\s*\(\s*(?P<idxtok>\d+(?:\s*-\s*\d+)?)\s*\)"
     )
     reserved_re = re.compile(r"\b(reserved|not\s+used)\b", re.IGNORECASE)
 
@@ -533,13 +683,7 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
     raw_heads: List[tuple[int, str, List[int], bool]] = []
     reserved_keys: set[tuple[str, int]] = set()
     # Track accepted heading positions per array (used to compute per-array boundaries)
-    positions_by_array: dict[str, List[int]] = {
-        "ICNTL": [],
-        "CNTL": [],
-        "INFO": [],
-        "RINFO": [],
-        "RINFOG": [],
-    }
+    positions_by_array: dict[str, List[int]] = {name: [] for name in ARRAY_NAMES}
 
     def _effective_indent(s: str) -> int:
         k = 0
@@ -554,17 +698,7 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
         def clamp(i: int, lo: int, hi: int) -> int:
             return max(lo, min(hi, i))
 
-        lo, hi = 1, 1000
-        if arr == "ICNTL":
-            hi = LEN_ICNTL
-        elif arr == "CNTL":
-            hi = LEN_CNTL
-        elif arr == "INFO":
-            hi = LEN_INFO
-        elif arr == "RINFO":
-            hi = LEN_RINFO
-        elif arr == "RINFOG":
-            hi = LEN_RINFOG
+        lo, hi = 1, LEN_BY_ARRAY.get(arr, 1000)
         idxtok = idxtok.strip()
         if "-" in idxtok:
             a, b = idxtok.split("-", 1)
@@ -733,41 +867,7 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
 
     # Helpers to clean snippet content: remove page-number lines and surrounding blank lines
     def _clean_snippet(slice_lines: List[str]) -> List[str]:
-        n = len(slice_lines)
-        to_drop = set()
-
-        def is_blank(s: str) -> bool:
-            return s.strip() == ""
-
-        def is_page_line(s: str) -> bool:
-            return bool(page_re.match(s)) or bool(ff_re.match(s))
-
-        i = 0
-        while i < n:
-            if is_page_line(slice_lines[i]):
-                # mark this, plus contiguous blanks around it
-                a = i - 1
-                while a >= 0 and is_blank(slice_lines[a]):
-                    to_drop.add(a)
-                    a -= 1
-                to_drop.add(i)
-                b = i + 1
-                while b < n and is_blank(slice_lines[b]):
-                    to_drop.add(b)
-                    b += 1
-                i = b
-                continue
-            i += 1
-        # Build cleaned list
-        cleaned = [slice_lines[j] for j in range(n) if j not in to_drop]
-        # Trim leading/trailing blanks
-        start = 0
-        while start < len(cleaned) and is_blank(cleaned[start]):
-            start += 1
-        end = len(cleaned)
-        while end > start and is_blank(cleaned[end - 1]):
-            end -= 1
-        return cleaned[start:end]
+        return clean_and_dedent_block(slice_lines)
 
     # Build chunks
     chunks: List[ParamChunk] = []
@@ -935,6 +1035,7 @@ def find_array_class_bounds(lines: List[str], array: str) -> Optional[tuple[int,
             "# INFO members",
             "# RINFO members",
             "# RINFOG members",
+            "# INFOG members",
         }:
             return (start, j)
     return (start, len(lines))
@@ -1088,141 +1189,7 @@ def update_enums_inline() -> None:
     # before the INFO members banner. If such blocks already exist (detected by
     # their unique begin markers), we replace their content.
 
-    def _resolve_guide_text_and_pages() -> (
-        tuple[Optional[Path], Optional[str], list[Optional[int]]]
-    ):
-        ug_path, ug_text = _resolve_userguide_text()
-        if not ug_text:
-            return ug_path, None, []
-        ug_lines = ug_text.splitlines()
-        # Build a simple page map similar to extract_param_chunks
-        page_at_line: list[Optional[int]] = [None] * len(ug_lines)
-        current_page: Optional[int] = None
-        page_re = re.compile(r"^\s*(\d{1,4})\s*$")
-        for i, ln in enumerate(ug_lines):
-            m = page_re.match(ln)
-            if m:
-                try:
-                    current_page = int(m.group(1))
-                except Exception:
-                    pass
-            page_at_line[i] = current_page
-        return ug_path, ug_text, page_at_line
-
-    def _find_section_span(
-        lines_all: list[str], start_rx: str, end_rx_list: list[str]
-    ) -> tuple[int, int]:
-        """Find body section span starting at a header matching start_rx, skipping TOC entries.
-
-        Heuristic to avoid TOC lines: prefer a match that does NOT contain dotted leaders
-        (". . .") or end with a page number after lots of spaces. If multiple candidates
-        qualify, use the first non-TOC match (body header). Fallback to the last match
-        overall if none qualify.
-        """
-        start_pat = re.compile(start_rx)
-        end_pats = [re.compile(rx) for rx in end_rx_list]
-        candidates: list[int] = []
-        for i, ln in enumerate(lines_all):
-            if start_pat.match(ln):
-                candidates.append(i)
-        if not candidates:
-            return -1, -1
-
-        def looks_like_toc(s: str) -> bool:
-            if re.search(r"\.[\s\.]*\d\s*$", s):
-                # dotted leaders followed by a page number
-                return True
-            if re.search(r"\s\d{1,4}\s*$", s) and (". . ." in s or ".." in s):
-                return True
-            return False
-
-        good = [i for i in candidates if not looks_like_toc(lines_all[i])]
-        # Prefer the first non-TOC match (body header), fallback to the last overall match
-        start = good[0] if good else candidates[-1]
-        end = len(lines_all)
-        for j in range(start + 1, len(lines_all)):
-            ln = lines_all[j]
-            # stop at first matching end pattern
-            for ep in end_pats:
-                if ep.match(ln):
-                    end = j
-                    break
-            if end != len(lines_all):
-                break
-        return start, end
-
-    def _clean_block(slice_lines: list[str]) -> list[str]:
-        # Remove standalone page-number lines and surrounding blank lines; trim edges
-        page_re2 = re.compile(r"^\s*(\d{1,4})\s*$")
-        ff_re2 = re.compile(r"^\f\s*$")
-
-        def is_blank(s: str) -> bool:
-            return s.strip() == ""
-
-        def is_page_line(s: str) -> bool:
-            return bool(page_re2.match(s)) or bool(ff_re2.match(s))
-
-        n = len(slice_lines)
-        to_drop: set[int] = set()
-        i = 0
-        while i < n:
-            if is_page_line(slice_lines[i]):
-                a = i - 1
-                while a >= 0 and is_blank(slice_lines[a]):
-                    to_drop.add(a)
-                    a -= 1
-                to_drop.add(i)
-                b = i + 1
-                while b < n and is_blank(slice_lines[b]):
-                    to_drop.add(b)
-                    b += 1
-                i = b
-                continue
-            i += 1
-        cleaned = [slice_lines[k] for k in range(n) if k not in to_drop]
-        # Trim leading/trailing blanks
-        start = 0
-        while start < len(cleaned) and is_blank(cleaned[start]):
-            start += 1
-        end = len(cleaned)
-        while end > start and is_blank(cleaned[end - 1]):
-            end -= 1
-        # Left-dedent common spaces
-        block = cleaned[start:end]
-
-        def leading_spaces(s: str) -> int:
-            n = 0
-            while n < len(s) and s[n] == " ":
-                n += 1
-            return n
-
-        non_empty = [ln for ln in block if ln.strip()]
-        common = min((leading_spaces(ln) for ln in non_empty), default=0)
-        if common > 0:
-            block = [ln[common:] if len(ln) >= common else ln for ln in block]
-        return block
-
-    def _make_comment_block(
-        title: str,
-        src_name: Optional[str],
-        page: Optional[int],
-        a: int,
-        b: int,
-        slice_lines: list[str],
-    ) -> list[str]:
-        meta_parts = []
-        if page:
-            meta_parts.append(f"page {page}")
-        if src_name:
-            meta_parts.append(f"from {src_name}:{a+1}-{b}")
-        meta = (" " + " ".join(meta_parts)) if meta_parts else ""
-        begin = f"# === Begin MUMPS snippet: {title}{meta} ==="
-        end = "# === End MUMPS snippet ==="
-        out = [begin]
-        for ln in slice_lines:
-            out.append(f"# {ln}".rstrip())
-        out.append(end)
-        return out
+    # Reuse shared helpers defined above
 
     def _insert_or_replace_block_after_banner(
         file_lines: list[str],
@@ -1301,19 +1268,19 @@ def update_enums_inline() -> None:
             file_lines.insert(insert_at, "\n")
 
     # Perform extraction and insertion
-    ug_path, ug_text, page_map = _resolve_guide_text_and_pages()
+    ug_path, ug_text, page_map = resolve_userguide_path_text_pagemap()
     if ug_text:
         ug_lines = ug_text.splitlines()
         # Subsection 5.9 span: start at '5.9 ' and end at next '5.<digit+>' or start of section 6
-        s59, e59 = _find_section_span(
+        s59, e59 = find_body_section_span(
             ug_lines,
             r"^\s*5\.9\s+.*$",
             [r"^\s*5\.[1-9]\d*\s+.*$", r"^\s*6\s+.*$"],
         )
         if s59 != -1 and e59 != -1 and e59 > s59:
-            s59_lines = _clean_block(ug_lines[s59:e59])
+            s59_lines = clean_and_dedent_block(ug_lines[s59:e59])
             p59 = page_map[s59] if 0 <= s59 < len(page_map) else None
-            block59 = _make_comment_block(
+            block59 = make_snippet_comment_block(
                 "SUBSECTION(5.9)",
                 ug_path.name if ug_path else None,
                 p59,
@@ -1327,7 +1294,7 @@ def update_enums_inline() -> None:
 
         # Section 8 span: start at '8 Error and warning diagnostics' to the next top-level section
         # Find Section 8 header (skip TOC via earlier heuristic) then scan for next top-level section header
-        s8, _tmp = _find_section_span(
+        s8, _tmp = find_body_section_span(
             ug_lines,
             r"^\s*8\s+Error\s+and\s+warning\s+diagnostics\s*$",
             [r"$^"],  # no-op end; we'll compute end ourselves
@@ -1359,9 +1326,9 @@ def update_enums_inline() -> None:
             if e8 == -1:
                 e8 = len(ug_lines)
         if s8 != -1 and e8 != -1 and e8 > s8:
-            s8_lines = _clean_block(ug_lines[s8:e8])
+            s8_lines = clean_and_dedent_block(ug_lines[s8:e8])
             p8 = page_map[s8] if 0 <= s8 < len(page_map) else None
-            block8 = _make_comment_block(
+            block8 = make_snippet_comment_block(
                 "SECTION(8)",
                 ug_path.name if ug_path else None,
                 p8,
@@ -1442,8 +1409,6 @@ def update_enums_inline() -> None:
     for ch in chunks:
         array = ch.array
         index = ch.index
-        if array not in {"CNTL", "ICNTL", "INFO", "RINFO", "RINFOG"}:
-            continue
         comment_block = ch.make_comment_block()
         # 1) Find and replace existing blocks; if multiple exist, collapse to one
         blocks = find_all_existing_snippet_blocks(lines, array, index, ch.end_marker)
@@ -1466,7 +1431,7 @@ def update_enums_inline() -> None:
                 rb, re_ = extra[-1]
                 del lines[rb : re_ + 1]
             # After snippet replacement, try to update/add page kw to existing decorator
-            if array in {"ICNTL", "CNTL", "INFO", "RINFO", "RINFOG"}:
+            if array in ARRAY_NAMES:
                 deco_line = find_param_decorator_line(lines, array, index)
                 if deco_line is not None:
                     # Ensure a blank line separates snippet end and decorator
@@ -1510,7 +1475,7 @@ def update_enums_inline() -> None:
             continue
 
         # 2) Prefer inserting above @param(index=K) in ICNTL/CNTL class
-        if array in {"ICNTL", "CNTL", "INFO", "RINFO", "RINFOG"}:
+        if array in ARRAY_NAMES:
             deco_line = find_param_decorator_line(lines, array, index)
             if deco_line is not None:
                 insert_at = remove_existing_snippet_block_above(
