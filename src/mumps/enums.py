@@ -2660,14 +2660,226 @@ class INFO(RawArray):
         """
         Call return status on this process.
 
-        Interpretation:
-        - 0: successful call.
-        - Negative: error code (see Section 8), possibly process-specific.
-        - Positive: warning code.
+        Semantics:
+        - `success` indicates a successful call.
+        - Error conditions are represented by the `error_*` members below.
+        - Warning conditions are represented by the `warn_*` flags below and may
+            be returned as a sum of several flags.
 
         Notes: After successfully saving or restoring an instance (JOB = save/restore),
-        this value is reset to 0 even if it was nonzero at save time.
+        this value is reset to `success` even if it was nonzero at save time.
         """
+
+        # Success
+        success = 0, "successful call"
+
+        # Errors (negative codes)
+        error_on_other_processor = (
+            -1,
+            "an error occurred on another processor (rank in detail)",
+        )
+        invalid_nnz_arguments = -2, "one or more NNZ/NZ inputs out of range"
+        invalid_job_sequence = -3, "invalid JOB value or phase order/incompatibility"
+        invalid_user_permutation = -4, "error in user-provided permutation array"
+        analysis_real_workspace_alloc_failed = (
+            -5,
+            "real/complex workspace allocation failed during analysis",
+        )
+        structurally_singular = (
+            -6,
+            "matrix is singular in structure (structural rank in detail)",
+        )
+        analysis_integer_workspace_alloc_failed = (
+            -7,
+            "integer workspace allocation failed during analysis",
+        )
+        is_too_small_factorization = (
+            -8,
+            "main internal integer workarray IS too small for factorization",
+        )
+        s_too_small = -9, "main internal real/complex workarray S too small"
+        numerically_singular_or_zero_pivot = (
+            -10,
+            "numerically singular matrix or zero pivot encountered",
+        )
+        s_or_wk_user_too_small_solve = -11, "S or LWK_USER too small for solution"
+        s_too_small_iterative_refinement = -12, "S too small for iterative refinement"
+        workspace_alloc_fail_fact_or_solve = (
+            -13,
+            "workspace allocation failed during factorization or solve",
+        )
+        is_too_small_solution = -14, "integer workarray IS too small for solution"
+        is_too_small_iterref_or_error_analysis = (
+            -15,
+            "IS too small for iterative refinement and/or error analysis",
+        )
+        n_out_of_range = -16, "matrix order N out of range"
+        send_buffer_too_small = -17, "internal send buffer too small"
+        rhs_blocking_too_large = -18, "RHS blocking size too large; may cause overflow"
+        max_memory_too_small = (
+            -19,
+            "maximum allowed working memory too small for factorization",
+        )
+        recv_buffer_too_small = -20, "internal reception buffer too small"
+        par_zero_not_allowed_single_proc = (
+            -21,
+            "PAR=0 not allowed with a single process",
+        )
+        invalid_pointer_array = (
+            -22,
+            "invalid user-provided pointer array (detail indicates which)",
+        )
+        mpi_not_initialized = -23, "MPI not initialized before JOB = initialize"
+        nelt_out_of_range = -24, "NELT out of range"
+        blacs_init_failed = -25, "BLACS initialization problem"
+        lrhs_out_of_range = -26, "LRHS out of range"
+        nz_rhs_mismatch = -27, "NZ_RHS and IRHS_PTR(NRHS+1) mismatch"
+        irhs_ptr1_not_one = -28, "IRHS_PTR(1) is not equal to 1"
+        lsol_loc_too_small = -29, "LSOL_loc too small for distributed solution"
+        schur_lld_out_of_range = -30, "SCHUR_LLD out of range"
+        schur_grid_invalid_mblock_nbblock = (
+            -31,
+            "invalid Schur process grid: MBLOCK != NBLOCK",
+        )
+        nrhs_icntl25_incompatible = -32, "incompatible NRHS and null-space selection"
+        schur_option_not_requested = (
+            -33,
+            "Schur solve mode requested but Schur not selected at analysis",
+        )
+        lredrhs_out_of_range = -34, "LREDRHS out of range"
+        schur_expand_without_reduce_or_forward_elim_conflict = (
+            -35,
+            "Schur expand without prior reduce or conflict with forward elimination",
+        )
+        icntl25_incompatible_with_infog28 = (
+            -36,
+            "incompatible ICNTL(25) and matrix deficiency",
+        )
+        icntl25_parameter_conflict = (
+            -37,
+            "ICNTL(25) incompatible with another parameter (index in detail)",
+        )
+        parallel_analysis_tool_missing = (
+            -38,
+            "parallel analysis requested but PT-SCOTCH/ParMETIS not provided",
+        )
+        parallel_analysis_incompatible = (
+            -39,
+            "parallel analysis incompatible with format/options",
+        )
+        spd_conflict_negative_pivot_scalapack = (
+            -40,
+            "SPD indicated but negative/null pivot at ScaLAPACK root",
+        )
+        wk_user_inconsistent_between_phases = (
+            -41,
+            "inconsistent LWK_USER between factorization and solve",
+        )
+        nrhs_incorrect_for_forward_elimination = (
+            -42,
+            "incorrect NRHS for forward elimination during factorization",
+        )
+        icntl32_incompatible_with_other = (
+            -43,
+            "forward elimination incompatible with other settings",
+        )
+        factors_unavailable_for_solve = (
+            -44,
+            "solve cannot proceed because factors are unavailable",
+        )
+        nrhs_nonpositive = -45, "NRHS must be positive"
+        nz_rhs_nonpositive = -46, "NZ_RHS must be positive in requested contexts"
+        inverse_entries_nrhs_constraint = (
+            -47,
+            "selected inverse entries requested but NRHS != N",
+        )
+        inverse_entries_conflict = (
+            -48,
+            "selected inverse entries incompatible with other settings",
+        )
+        size_schur_invalid = -49, "SIZE_SCHUR invalid or modified since analysis"
+        ordering_error = -50, "fill-reducing ordering error during analysis"
+        external_ordering_32bit_overflow = (
+            -51,
+            "external ordering with 32-bit integers overflows graph size",
+        )
+        external_ordering_integer_size_mismatch = (
+            -52,
+            "external ordering libraries built with incompatible integer size",
+        )
+        internal_error_inconsistent_input = (
+            -53,
+            "internal error; possibly inconsistent inputs between calls",
+        )
+        blr_requires_analysis_with_blr = (
+            -54,
+            "BLR factorization requested without BLR-enabled analysis",
+        )
+        distributed_rhs_inconsistent_host = (
+            -55,
+            "distributed RHS inconsistency (host or LSOL_loc)",
+        )
+        distributed_rhs_solution_workarray_conflict = (
+            -56,
+            "distributed RHS and solution share workarray with insufficient size",
+        )
+        block_format_interface_error = (
+            -57,
+            "block format interface error during analysis (detail indicates issue)",
+        )
+        tree_parallelism_error = -58, "tree parallelism (ICNTL(48)) related error"
+        integer_size_mismatch = (
+            -69,
+            "Fortran INTEGER size does not match MUMPS_INT size",
+        )
+        save_file_exists = -70, "save file already exists for JOB = save"
+        save_file_creation_failed = -71, "error creating file(s) for save"
+        save_write_failed = -72, "error writing data during save"
+        restore_incompatible_parameter = (
+            -73,
+            "incompatible parameter with saved instance (detail indicates which)",
+        )
+        restore_open_failed = -74, "could not open file for restore"
+        restore_read_failed = -75, "error reading data during restore"
+        delete_files_failed = -76, "error deleting files during save/restore deletion"
+        save_dir_prefix_problem = (
+            -77,
+            "problem with SAVE_DIR/SAVE_PREFIX environment/length",
+        )
+        restore_workspace_alloc_problem = (
+            -78,
+            "workspace allocation problem during restore",
+        )
+        no_fortran_file_unit = -79, "no Fortran file unit available"
+        scotch_ordering_error = -88, "SCOTCH ordering error"
+        scotch_kway_partition_error = (
+            -89,
+            "SCOTCH k-way partitioning error; consider METIS",
+        )
+        ooc_management_error = -90, "out-of-core management error"
+        temporary_release_error = (
+            -800,
+            "temporary release limitation (e.g., elemental format with BLR)",
+        )
+
+        # Warnings (positive flags; may be summed)
+        warn_index_out_of_range = 1, "some IRN/JCN indices out of range were ignored"
+        warn_solution_maxnorm_near_zero = (
+            2,
+            "solution max-norm near zero may affect residual scaling",
+        )
+        warn_compact_workarray_insufficient_memory = (
+            4,
+            "not enough memory to compact workarray at end of factorization",
+        )
+        warn_iterative_refinement_max_steps = (
+            8,
+            "more steps than allowed are required for iterative refinement",
+        )
+        warn_rank_revealing_inconsistencies = (
+            16,
+            "rank-revealing: inertia/determinant may be inconsistent with singularities",
+        )
 
     # === Begin MUMPS snippet: INFO(2) page 98 from userguide_5.8.1.txt:5416-5417 ===
     # INFO(2) holds additional information about the error or the warning. If INFO(1) = -1, INFO(2) is
@@ -2677,11 +2889,16 @@ class INFO(RawArray):
     @param(index=2, page=98)
     class status_detail:
         """
-        Additional information about the error/warning.
+        Additional information associated with `status`.
 
-        Interpretation: when `status` indicates a specific initialization error, this
-        may hold the processor rank (in communicator COMM) where the error was
-        detected; otherwise used for error/warning details as documented.
+        Interpretation depends on the returned `status` value and the phase:
+        - For `error_on_other_processor`, this holds the processor rank (in COMM)
+            where the error was detected.
+        - For many error codes, this carries the specific quantity referenced in the
+            documentation (e.g., sizes, invalid indices, parameter identifiers).
+        - For warnings, this may carry an auxiliary value as described in the docs.
+
+        See the Error and warning diagnostics section for per-status meanings.
         """
 
     # === Begin MUMPS snippet: INFO(3) page 98 from userguide_5.8.1.txt:5418-5435 ===
@@ -4332,10 +4549,13 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=4, page=101)
-    class err_analysis_stat_1:
+    class matrix_norm_inf:
         """
-        After solve with error analysis enabled: first global statistic as defined in
-        the error-analysis subsection. Only returned when error analysis is on.
+        After solve with error analysis: infinity norm of the input matrix. For a
+        transposed solve (see ICNTL(9)), this is the infinity norm of Aᵀ instead.
+
+        Returned only when error analysis is enabled (ICNTL(11) = 1 or 2).
+        Unitless.
         """
 
     # === Begin MUMPS snippet: RINFOG(5) from userguide_5.8.1.txt:2287-2290 ===
@@ -4344,6 +4564,36 @@ class RINFOG(RawArray):
     # scaled residual ∥A∥ ∞ ∥x̄∥∞
     #                             in RINFOG(6), a componentwise backward error estimate in
     # === End MUMPS snippet ===
+
+    @param(index=5, page=101)
+    class solution_norm_inf:
+        """
+        After solve with error analysis: infinity norm of the computed solution.
+
+        Returned only when error analysis is enabled (ICNTL(11) = 1 or 2).
+        Unitless.
+        """
+
+    @param(index=6, page=101)
+    class scaled_residual_inf:
+        """
+        After solve with error analysis: scaled residual defined as
+        ||A x − b||_∞ / (||A||_∞ · ||x||_∞).
+
+        Returned only when error analysis is enabled (ICNTL(11) = 1 or 2).
+        Unitless.
+        """
+
+    @param(index=7, page=101)
+    class backward_error_weight_1:
+        """
+        After solve with error analysis: ω1, a component of the backward error
+        estimate used in the forward error bound together with
+        RINFOG(8) (ω2), RINFOG(10) (cond1), and RINFOG(11) (cond2).
+
+        Returned only when error analysis is enabled (ICNTL(11) = 1 or 2).
+        Unitless.
+        """
 
     # === Begin MUMPS snippet: RINFOG(7) from userguide_5.8.1.txt:2291-2293 ===
     #   RINFOG(7) and RINFOG(8) are computed.
@@ -4357,10 +4607,14 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=8, page=101)
-    class err_analysis_stat_5:
+    class backward_error_weight_2:
         """
-        After solve with error analysis enabled: fifth global statistic as defined in
-        the error-analysis subsection. Only returned when error analysis is on.
+        After solve with error analysis: ω2, a component of the backward error
+        estimate used in the forward error bound together with
+        RINFOG(7) (ω1), RINFOG(10) (cond1), and RINFOG(11) (cond2).
+
+        Returned only when error analysis is enabled (ICNTL(11) = 1 or 2).
+        Unitless.
         """
 
     # === Begin MUMPS snippet: RINFOG(9) page 101 from userguide_5.8.1.txt:5613-5614 ===
@@ -4369,10 +4623,25 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=9, page=101)
-    class err_analysis_stat_6:
+    class forward_error_bound_rel_inf:
         """
-        After solve with error analysis enabled: global error estimate in solution.
-        Only returned when error analysis is set accordingly.
+        After solve with full error analysis: upper bound on the relative forward
+        error in the infinity norm, satisfying
+        ||δx||_∞ / ||x||_∞ ≤ ω1 · cond1 + ω2 · cond2.
+
+        Returned only when full statistics are requested (ICNTL(11) = 1).
+        Unitless.
+        """
+
+    @param(index=10, page=101)
+    class condition_number_1:
+        """
+        After solve with full error analysis: first condition number for the
+        linear system (not just the matrix), used in the forward error bound
+        together with ω1, ω2, and the second condition number.
+
+        Returned only when full statistics are requested (ICNTL(11) = 1).
+        Unitless.
         """
 
     # === Begin MUMPS snippet: RINFOG(11) page 101 from userguide_5.8.1.txt:5613-5614 ===
@@ -4381,11 +4650,14 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=11, page=101)
-    class err_analysis_stat_8:
+    class condition_number_2:
         """
-        After solve with error analysis enabled: third item in the (9..11) group of
-        global statistics (condition numbers or related measure), per subsection on
-        error analysis. Only returned when error analysis is on.
+        After solve with full error analysis: second condition number for the
+        linear system (not just the matrix), used in the forward error bound
+        together with ω1, ω2, and the first condition number.
+
+        Returned only when full statistics are requested (ICNTL(11) = 1).
+        Unitless.
         """
 
     # === Begin MUMPS snippet: RINFOG(12) page 101 from userguide_5.8.1.txt:5615-5621 ===
