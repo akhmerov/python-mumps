@@ -11,6 +11,7 @@ Output format (MUST)
 - For discrete-meaning parameters, you MUST NOT mention in the docstring that the user should choose from the members; this is implied.
 - For discrete integer parameters: define members as `name = int_value, "short description"`. The description MUST NOT mention the integer value.
 - For continuous/float or arbitrary-valued parameters: define NO members; docstring only.
+- For continuous/float or arbitrary-valued parameters: you MUST mention parameter values and describe their meaning in the docstring.
 - Output exactly one class block (no decorator line, no imports, no extra prose).
 
 Decision rules (MUST)

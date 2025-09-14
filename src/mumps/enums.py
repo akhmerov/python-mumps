@@ -65,8 +65,6 @@
 """Enums for MUMPS control/info arrays.
 
 This module provides typed wrappers for the MUMPS parameter arrays.
-
-Scope: - Arrays: CNTL, ICNTL, INFO, RINFO, RINFOG.
 """
 
 from __future__ import annotations
@@ -79,10 +77,11 @@ from ._param_base import (
 )
 
 
-# Canonical lengths (from ZMUMPSID signature and headers)
+# Canonical lengths
 LEN_CNTL = 15
 LEN_ICNTL = 60
 LEN_INFO = 80
+LEN_INFOG = 80
 LEN_RINFO = 40
 LEN_RINFOG = 40
 
@@ -1192,7 +1191,26 @@ class ICNTL(ParamArray):
 
     @param(index=25, page=84)
     class null_space_solution:
-        "null space solution control during solve (0 normal; i compute i-th vector; -1 compute all)"
+        """
+        Controls solution for deficient matrices and null-space extraction during solve.
+
+        Default: normal solution step. When a deficiency is detected (INFOG(28) > 0),
+        this can return specific null-space vectors or the full basis. Iterative
+        refinement, error analysis, and transpose solves (ICNTL(9) ≠ 1) are ignored
+        when null-space vectors are requested. Interacts with ICNTL(56), ICNTL(21),
+        and ICNTL(24).
+
+        Usage constraints:
+        - If set to 0 (default), a normal solution is performed; if the matrix is
+            singular, one possible solution is returned.
+        - To get the i-th null-space vector, set to i with 1 ≤ i ≤ INFOG(28);
+            to get the full basis, set to −1.
+        - For centralized solutions (ICNTL(21)=0), vectors are returned in RHS on
+            the host; for distributed solutions (ICNTL(21)=1), vectors are returned in
+            SOL_loc and must be preallocated on all processes.
+        - The number of columns in RHS or SOL_loc must match the number of requested
+            vectors: NRHS = 1 for a single vector; NRHS = INFOG(28) for the full basis.
+        """
 
     # === Begin MUMPS snippet: ICNTL(26) page 84 from userguide_5.8.1.txt:4692-4722 ===
     # ICNTL(26) drives the solution phase if a Schur complement matrix has been computed (ICNTL(19) ̸=
@@ -1224,7 +1242,19 @@ class ICNTL(ParamArray):
 
     @param(index=26, page=84)
     class schur_solve_mode:
-        "with Schur ON: 0 normal; 1 forward to build reduced RHS; 2 inject reduced solution"
+        """
+        Solving strategy when a Schur complement is used.
+
+        Default is `standard`. When forward elimination is performed during
+        factorization, this is also accessed at factorization time. Error
+        analysis and iterative refinement are disabled for non-standard
+        strategies. Interacts with Schur complement selection and
+        `rhs_forward_elimination`.
+        """
+
+        standard = 0, "solve internal system; zero-out Schur entries on output"
+        reduce_rhs = 1, "forward elimination; return internal solution and reduced RHS"
+        expand_schur_solution = 2, "expand Schur solution to full variable solution"
 
     # === Begin MUMPS snippet: ICNTL(27) page 85 from userguide_5.8.1.txt:4724-4739 ===
     # ICNTL(27) controls the blocking size for multiple right-hand sides.
@@ -1292,7 +1322,16 @@ class ICNTL(ParamArray):
 
     @param(index=28, page=85)
     class analysis_mode:
-        "analysis and ordering mode"
+        """
+        Controls whether ordering/symbolic analysis is sequential or parallel.
+
+        Default is `auto`. In parallel analysis, the ordering tool is selected by
+        `parallel_ordering`; in sequential analysis, the choice is driven by the
+        sequential ordering control. Parallel analysis can be disabled by Schur
+        complement computation, maximum transversal requests, or unassembled
+        matrices. Interacts with the sequential ordering control and
+        `parallel_ordering`.
+        """
 
         auto = 0, "automatic (defaults to sequential)"
         sequential = 1, "sequential analysis (ordering via ICNTL(7))"
@@ -1318,7 +1357,16 @@ class ICNTL(ParamArray):
 
     @param(index=29, page=86)
     class parallel_ordering:
-        "ordering tool in parallel analysis (0 auto -> PT-SCOTCH; 1 PT-SCOTCH; 2 ParMetis)"
+        """
+        Parallel ordering tool used during parallel analysis.
+
+        Default is `auto`. The effective permutation is exposed in the symmetric
+        permutation output. Used only when `analysis_mode` is `parallel`.
+        """
+
+        auto = 0, "automatic choice"
+        pt_scotch = 1, "use PT-SCOTCH if available"
+        parmetis = 2, "use ParMETIS if available"
 
     # === Begin MUMPS snippet: ICNTL(30) page 86 from userguide_5.8.1.txt:4790-4820 ===
     # ICNTL(30) computes a user-specified set of entries in the inverse A−1 of the original matrix (see
@@ -1350,7 +1398,21 @@ class ICNTL(ParamArray):
 
     @param(index=30, page=86)
     class inverse_entries:
-        "compute selected entries of A^-1 during solve when nonzero (uses sparse RHS interface; overrides ICNTL(9))"
+        """
+        Compute selected entries of the inverse during solve using the sparse RHS interface.
+
+        Default is `off`. When enabled, error analysis and iterative refinement are
+        disabled, distributed solves are not supported, and partial factorizations
+        with Schur complement are not supported. The transpose or adjoint solve
+        option is ignored. Columns are processed in blocks according to
+        `rhs_blocking`; the number of right-hand sides must match the matrix size.
+        Duplicate targets yield duplicate results. Interacts with `rhs_blocking`,
+        distributed solution settings, Schur complement selection, and the
+        transpose/adjoint solve control.
+        """
+
+        off = 0, "do not compute inverse entries"
+        on = 1, "compute selected inverse entries using sparse RHS"
 
     # === Begin MUMPS snippet: ICNTL(31) page 87 from userguide_5.8.1.txt:4822-4855 ===
     # ICNTL(31) indicates which factors may be discarded during the factorization.
@@ -1390,8 +1452,26 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=31, page=87)
-    class param_31:
-        "Placeholder parameter, not processed yet."
+    class factor_retention:
+        """
+        Factor storage policy during/after factorization.
+
+        Default is `keep_all`. For unsymmetric problems with forward elimination
+        during factorization, discarding of L may occur regardless. Keeping only U
+        enables backward substitution only and is not meaningful for symmetric
+        matrices. Interacts with `rhs_forward_elimination`, `determinant`,
+        `null_space_solution`, and out-of-core storage settings.
+        """
+
+        keep_all = (
+            0,
+            "keep all factors (except L may be discarded with forward elimination)",
+        )
+        discard_all = (
+            1,
+            "discard factors; only statistics or Schur complement are needed",
+        )
+        keep_u_only = 2, "unsymmetric only: keep U to allow only backward substitution"
 
     # === Begin MUMPS snippet: ICNTL(32) page 87 from userguide_5.8.1.txt:4857-4892 ===
     # ICNTL(32) performs the forward elimination of the right-hand sides (Equation (3)) during the
@@ -1429,8 +1509,23 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=32, page=87)
-    class param_32:
-        "Placeholder parameter, not processed yet."
+    class rhs_forward_elimination:
+        """
+        Perform forward elimination of dense right-hand sides during factorization.
+
+        Default is `disabled`. Incompatible with sparse right-hand sides, transpose
+        solves, inverse-entry computation, and BLR factorizations. Iterative
+        refinement and error analysis are disabled. All right-hand sides are handled
+        in one pass during backward substitution, ignoring `rhs_blocking`. Provide
+        RHS, NRHS, and LRHS at the beginning of factorization. Interacts with
+        `factor_retention` and `schur_solve_mode`.
+        """
+
+        disabled = 0, "standard factorization without right-hand sides"
+        enabled = (
+            1,
+            "perform forward elimination during factorization; solve does only backward",
+        )
 
     # === Begin MUMPS snippet: ICNTL(33) page 88 from userguide_5.8.1.txt:4894-4926 ===
     # ICNTL(33) computes the determinant of the input matrix.
@@ -1466,7 +1561,18 @@ class ICNTL(ParamArray):
 
     @param(index=33, page=88)
     class determinant:
-        "determinant computation before factorization (0 off; otherwise on; excludes null/static pivots)"
+        """
+        Determinant computation during factorization.
+
+        Default is `off`. When enabled, Schur complement elements are excluded
+        from the computation. Null pivot rows and static pivots are excluded; when
+        scaling is active, behavior on unsymmetric matrices with off-diagonal
+        pivoting may be affected. The computed value is exposed in the floating-
+        point and integer info arrays. Interacts with `factor_retention`.
+        """
+
+        off = 0, "do not compute determinant"
+        on = 1, "compute determinant"
 
     # === Begin MUMPS snippet: ICNTL(34) page 89 from userguide_5.8.1.txt:4928-4939 ===
     # ICNTL(34) controls the conservation of the OOC files during JOB= –3 (See Subsection 5.20).
@@ -1485,7 +1591,19 @@ class ICNTL(ParamArray):
 
     @param(index=34, page=89)
     class save_restore_cleanup:
-        "when JOB=-3 and save/restore used: 0 keep restore files; 1 clean files"
+        """
+        Cleanup policy for out-of-core files during save/restore deletion.
+
+        Default is `mark_for_deletion`. Only files referenced by the saved data
+        (SAVE_DIR and SAVE_PREFIX) are deleted; extra files under the same OOC
+        settings are preserved.
+        """
+
+        mark_for_deletion = 0, "mark out-of-core files for deletion"
+        preserve_files = (
+            1,
+            "preserve out-of-core files referenced by another saved instance",
+        )
 
     # === Begin MUMPS snippet: ICNTL(35) page 89 from userguide_5.8.1.txt:4941-4972 ===
     # ICNTL(35) controls the activation of the BLR feature (see Subsection 5.19).
@@ -1520,8 +1638,27 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=35, page=89)
-    class param_35:
-        "Placeholder parameter, not processed yet."
+    class blr_mode:
+        """
+        Block Low-Rank (BLR) feature activation.
+
+        Default is `off`. BLR must be set before analysis to enable required
+        preprocessing; if set to off at analysis, only off is allowed at factorization.
+        Incompatible with elemental matrices and with forward elimination during
+        factorization. Interacts with BLR accuracy and related BLR controls, and
+        may influence whether factors are written to disk in out-of-core mode.
+        """
+
+        off = 0, "standard full-rank analysis and factorization"
+        auto = 1, "enable BLR with automatic choice of BLR option"
+        factor_and_solve = (
+            2,
+            "BLR for both factorization and solve; memory savings by low-rank factors",
+        )
+        factor_only_full_rank_solve = (
+            3,
+            "BLR during factorization; solve in full-rank; keep full-rank factors",
+        )
 
     # === Begin MUMPS snippet: ICNTL(36) page 90 from userguide_5.8.1.txt:4974-4986 ===
     # ICNTL(36) controls the choice of BLR factorization variant (see Subsection 5.19).
@@ -1540,8 +1677,21 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=36, page=90)
-    class param_36:
-        "Placeholder parameter, not processed yet."
+    class blr_variant:
+        """
+        BLR factorization variant when BLR is enabled.
+
+        Default is `ufsc_lua`. Selects when compression is applied within the
+        factorization. Earlier compression can reduce operations and remains
+        compatible with numerical pivoting. Interacts with `blr_mode` and the
+        numerical pivoting threshold.
+        """
+
+        ufsc_lua = 0, "UFSC variant with low-rank updates accumulation"
+        ucfs_lua = (
+            1,
+            "UCFS variant with low-rank updates accumulation (earlier compression)",
+        )
 
     # === Begin MUMPS snippet: ICNTL(37) page 90 from userguide_5.8.1.txt:4988-5000 ===
     # ICNTL(37) controls the BLR compression of the contribution blocks (see Subsection 5.19).
@@ -1560,8 +1710,17 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=37, page=90)
-    class param_37:
-        "Placeholder parameter, not processed yet."
+    class contrib_block_compression:
+        """
+        Compression of BLR contribution blocks.
+
+        Default is `disabled`. Enabling reduces memory usage at the cost of extra
+        operations. Recommended with adaptive precision for additional savings.
+        Interacts with `blr_mode`, BLR accuracy, and adaptive precision settings.
+        """
+
+        disabled = 0, "do not compress contribution blocks"
+        enabled = 1, "compress contribution blocks to reduce memory"
 
     # === Begin MUMPS snippet: ICNTL(38) page 90 from userguide_5.8.1.txt:5002-5013 ===
     # ICNTL(38) estimates compression rate of LU factors (see Subsection 5.19).
@@ -1579,8 +1738,17 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=38, page=90)
-    class param_38:
-        "Placeholder parameter, not processed yet."
+    class factor_compression_rate:
+        """
+        Estimated compression rate for BLR factors, expressed in tenths of a percent.
+
+        Default corresponds to typical compression of factors in BLR fronts. Values
+        range from full compression (0) to no compression (1000). Affects statistics in
+        the integer and floating- point info arrays. Interacts with `blr_mode` and BLR
+        accuracy.
+
+        Default: 600 (60% of full-rank size).
+        """
 
     # === Begin MUMPS snippet: ICNTL(39) page 90 from userguide_5.8.1.txt:5015-5031 ===
     # ICNTL(39) estimates compression rate of contribution blocks (see Subsection 5.19).
@@ -1599,8 +1767,19 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=39, page=90)
-    class param_39:
-        "Placeholder parameter, not processed yet."
+    class contrib_block_compression_rate:
+        """
+        Estimated compression rate for BLR contribution blocks, expressed in tenths of a
+        percent.
+
+        Default corresponds to typical compression of contribution blocks in BLR fronts.
+        Used when contribution block compression is enabled. Values range from full
+        compression (0) to no compression (1000). Affects statistics in the integer and
+        floating-point info arrays. Interacts with `blr_mode` and
+        `contrib_block_compression`.
+
+        Default: 500 (50% of full-rank size).
+        """
 
     # === Begin MUMPS snippet: ICNTL(48) page 91 from userguide_5.8.1.txt:5037-5058 ===
     # ICNTL(48) multithreading with tree parallelism (see Subsection 5.23).
@@ -1629,7 +1808,18 @@ class ICNTL(ParamArray):
 
     @param(index=48, page=91)
     class l0_omp:
-        "Controls L0_OMP feature (analysis/factorization/solve activation); out-of-range treated as 0"
+        """
+        Multithreaded tree parallelism activation.
+
+        Default is `enabled`. Must be set before analysis and remains effective for
+        factorization; can be disabled prior to solve. Requires consistent thread
+        counts per process and sufficient threads for effectiveness. User-provided
+        workspace under the lowest layer is not used. Interacts with thread-count
+        controls.
+        """
+
+        disabled = 0, "not activated"
+        enabled = 1, "activate multithreaded tree parallelism"
 
     # === Begin MUMPS snippet: ICNTL(49) page 91 from userguide_5.8.1.txt:5060-5078 ===
     # ICNTL(49) compact workarray id%S at the end of factorization phase (see Subsection 5.22).
@@ -1652,7 +1842,24 @@ class ICNTL(ParamArray):
 
     @param(index=49, page=91)
     class compact_workarray:
-        "compact workarray before solve: 0 none; 1 compact respecting ICNTL(23); 2 compact ignoring it"
+        """
+        Compaction policy for the main workarray at end of factorization.
+
+        Default is `none`. Compaction may require intermediate allocations and can
+        be skipped if memory constraints would be violated or allocation fails.
+        Incompatible with user-provided work array features. Interacts with the
+        maximum memory setting.
+        """
+
+        none = 0, "do nothing"
+        compact_respecting_limit = (
+            1,
+            "compact while respecting the maximum memory constraint",
+        )
+        compact_ignore_limit = (
+            2,
+            "compact without applying the maximum memory constraint to this process",
+        )
 
     # === Begin MUMPS snippet: ICNTL(56) page 92 from userguide_5.8.1.txt:5087-5116 ===
     # ICNTL(56) detects pseudo-singularities during factorization and factorizes the root node with a rank-
@@ -1688,8 +1895,20 @@ class ICNTL(ParamArray):
     # === End MUMPS snippet ===
 
     @param(index=56, page=92)
-    class null_space_analysis:
-        "null space prep/analysis (analysis: >0 prepare; factorization: 1 SVD, 2 QR if prepared)"
+    class rank_revealing:
+        """
+        Rank-revealing analysis and root processing for pseudo-singularities.
+
+        Default is `off`. Must be enabled before analysis to prepare for later use.
+        Enforces sequential root processing. May require increasing the numerical
+        pivoting threshold on difficult problems. The deficiency and related data
+        (indices and singular values) are exposed in the info arrays and pointer
+        arrays. Interacts with root processing, null pivot detection, null-space
+        solution control, and numerical thresholds.
+        """
+
+        off = 0, "standard factorization"
+        on = 1, "SVD-based rank-revealing factorization on the root node"
 
     # === Begin MUMPS snippet: ICNTL(58) page 92 from userguide_5.8.1.txt:5122-5139 ===
     # ICNTL(58) defines options for symbolic factorization
@@ -1710,7 +1929,17 @@ class ICNTL(ParamArray):
 
     @param(index=58, page=92)
     class symb_factorization:
-        "symbolic factorization strategy with METIS/given ordering (1 SYMBQAMD; 2 column count; default 2)"
+        """
+        Symbolic factorization strategy when centralized ordering is used.
+
+        Default is `column_count`. When ordering is given or uses METIS in
+        centralized mode, symbolic factorization is triggered automatically. A fast
+        block approach is used when the SCOTCH-based ordering is selected. Interacts
+        with the sequential ordering and analysis mode controls.
+        """
+
+        symbqamd = 1, "quotient-graph based, mixing right- and left-looking updates"
+        column_count = 2, "column count based symbolic factorization"
 
 
 # ------------
@@ -1749,7 +1978,24 @@ class CNTL(ParamArray):
 
     @param(index=1, page=93)
     class threshold:
-        "relative pivoting threshold"
+        """
+        Relative threshold for numerical pivoting during factorization.
+
+        Interpretation:
+        - Negative: automatic choice.
+        - Zero: no numerical pivoting; factorization fails if a zero pivot is encountered.
+        - Positive: enable numerical pivoting; values above the internal maxima are clipped
+            (unsymmetric capped at 1.0; symmetric capped at 0.5).
+
+        Default: automatic. Typical automatic choices are higher when rank-revealing is
+        enabled, moderate for unsymmetric or general symmetric cases, and zero for
+        symmetric positive definite problems.
+
+        Effects: larger values favor stability at the cost of additional fill-in and work.
+        For diagonally dominant matrices, zero can reduce time while remaining stable.
+
+        Related parameters: static pivoting threshold and rank-revealing controls.
+        """
 
     # === Begin MUMPS snippet: CNTL(2) page 93 from userguide_5.8.1.txt:5164-5176 ===
     # CNTL(2) is the stopping criterion for iterative refinement
@@ -1769,7 +2015,18 @@ class CNTL(ParamArray):
 
     @param(index=2, page=93)
     class stopping:
-        "stopping criterion (iterative refinement tolerance)"
+        """
+        Iterative refinement stopping criterion for the solve phase.
+
+        Interpretation: nonnegative values set the tolerance on the combined backward
+        error; negative values are treated as a machine-precision-based default.
+
+        Default: square root of machine-precision. Iterative refinement stops when the
+        requested accuracy is achieved or when progress is too slow (insufficient
+        decrease between iterations).
+
+        Related parameters: iterative refinement control, backward error outputs.
+        """
 
     # === Begin MUMPS snippet: CNTL(3) page 93 from userguide_5.8.1.txt:5178-5205 ===
     # CNTL(3) it is used to determine null pivot rows when the null pivot row detection option is enabled
@@ -1800,7 +2057,23 @@ class CNTL(ParamArray):
 
     @param(index=3, page=93)
     class rr_thresholds:
-        "thresholds for RR and null pivot detection (see docs)"
+        """
+        Thresholds for rank-revealing decisions and null pivot detection.
+
+        Interpretation (thres):
+        - Positive: thres = CNTL(3) × ||A_pre|| (infinite norm of preprocessed matrix).
+        - Zero: thres = ε × ||A_pre|| × √(N_h), with ε the machine precision and N_h the
+            number of variables on the deepest branch of the elimination tree.
+        - Negative: thres = |CNTL(3)| (absolute threshold).
+
+        Default: zero.
+
+        Usage: with rank-revealing enabled, singular values below thres are considered
+        null; small pivots can be postponed; and when null pivot detection is enabled,
+        pivots below thres are treated as null.
+
+        Related parameters: null pivot detection, rank-revealing control.
+        """
 
     # === Begin MUMPS snippet: CNTL(4) page 94 from userguide_5.8.1.txt:5207-5226 ===
     # CNTL(4) determines the threshold for static pivoting. See Subsection 3.10
@@ -1827,7 +2100,20 @@ class CNTL(ParamArray):
 
     @param(index=4, page=94)
     class static_pivoting:
-        "static pivoting threshold (-1 off; 0 MACHEPS^1/2 ||A||; >0 threshold)"
+        """
+        Static pivoting magnitude used to replace small pivots.
+
+        Interpretation:
+        - Negative: disabled.
+        - Zero: enabled with an automatically determined threshold, currently ε × ||A_pre||.
+        - Positive: enabled; pivots with magnitude smaller than this value are set to it.
+
+        Default: disabled. Incompatible with null pivot detection and rank-revealing;
+        the setting is ignored in those cases. Counts of modified pivots are reported in
+        the global integer info.
+
+        Related parameters: numerical pivoting threshold.
+        """
 
     # === Begin MUMPS snippet: CNTL(5) page 94 from userguide_5.8.1.txt:5228-5246 ===
     # CNTL(5) defines the fixation for null pivots and is effective only when null pivot row detection is active
@@ -1848,7 +2134,20 @@ class CNTL(ParamArray):
 
     @param(index=5, page=94)
     class null_pivot_fixation:
-        "null pivot fixation control (active if ICNTL(24)=1)"
+        """
+        Fixation applied when a pivot is detected as null (active with null pivot detection).
+
+        Interpretation:
+        - Nonpositive: in symmetric case, set the column in L to zero and the D pivot to one;
+            in unsymmetric case, use an internally chosen large positive fixation and set the
+            pivot row in U to zero.
+        - Positive: set the pivot to sign(piv) × CNTL(5) × ||A_pre|| to limit impact.
+
+        Default: zero. Recommended to use a large value when specifying an explicit
+        fixation.
+
+        Related parameters: null pivot detection.
+        """
 
     # === Begin MUMPS snippet: CNTL(7) page 95 from userguide_5.8.1.txt:5249-5267 ===
     # CNTL(7) defines the precision of the dropping parameter used during BLR compression (see
@@ -1874,7 +2173,19 @@ class CNTL(ParamArray):
 
     @param(index=7, page=95)
     class blr_tolerance:
-        "dropping parameter for BLR truncated RRQR (0.0 => no approximation)"
+        """
+        Dropping tolerance for BLR compression (truncated rank-revealing QR).
+
+        Interpretation:
+        - Zero: full precision approximation (no approximation).
+        - Positive: tolerance used to stop the RRQR compression; larger values increase
+            compression and reduce accuracy.
+
+        Default: full precision. The tolerance is absolute (not relative to matrix or block
+        norms). Scaling or enabling preprocessing is recommended to improve behavior.
+
+        Related parameters: BLR activation.
+        """
 
 
 # ------------
@@ -1883,7 +2194,7 @@ class CNTL(ParamArray):
 
 
 class INFO(RawArray):
-    """Integer info array INFO(1..80). Read-only in most workflows."""
+    f"""Integer info array INFO(1..{LEN_INFO}). Read-only in most workflows."""
 
     def __init__(self, size: int = LEN_INFO):
         super().__init__(size, default=0)
@@ -1896,8 +2207,18 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=1, page=98)
-    class param_1:
-        "Placeholder parameter, not processed yet."
+    class status:
+        """
+        Call return status on this process.
+
+        Interpretation:
+        - 0: successful call.
+        - Negative: error code (see Section 8), possibly process-specific.
+        - Positive: warning code.
+
+        Notes: After successfully saving or restoring an instance (JOB = save/restore),
+        this value is reset to 0 even if it was nonzero at save time.
+        """
 
     # === Begin MUMPS snippet: INFO(2) page 98 from userguide_5.8.1.txt:5416-5417 ===
     # INFO(2) holds additional information about the error or the warning. If INFO(1) = -1, INFO(2) is
@@ -1905,8 +2226,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=2, page=98)
-    class param_2:
-        "Placeholder parameter, not processed yet."
+    class status_detail:
+        """
+        Additional information about the error/warning.
+
+        Interpretation: when `status` indicates a specific initialization error, this
+        may hold the processor rank (in communicator COMM) where the error was
+        detected; otherwise used for error/warning details as documented.
+        """
 
     # === Begin MUMPS snippet: INFO(3) page 98 from userguide_5.8.1.txt:5418-5435 ===
     # INFO(3) - after analysis: Estimated size of the real/complex space needed on the processor to
@@ -1930,8 +2257,19 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=3, page=98)
-    class param_3:
-        "Placeholder parameter, not processed yet."
+    class est_factor_space_fullrank:
+        """
+        After analysis: estimated size of real/complex space needed locally to store
+        factors assuming full-rank storage during factorization.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Disk estimate: multiply entries by scalar size (4/8/8/16 bytes) for single/
+        double/complex single/complex double.
+
+        Notes: When all factors are discarded, still reports would-be factor size; when
+        only L is discarded, excludes L. Total estimated full-rank factor size over all
+        processes is reported globally.
+        """
 
     # === Begin MUMPS snippet: INFO(4) page 98 from userguide_5.8.1.txt:5436-5437 ===
     # INFO(4) - after analysis: Estimated integer space needed on the processor for factors (assuming a
@@ -1939,16 +2277,25 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=4, page=98)
-    class param_4:
-        "Placeholder parameter, not processed yet."
+    class est_factor_int_space_fullrank:
+        """
+        After analysis: estimated integer space needed locally for factors assuming
+        full-rank storage.
+
+        Units: integer entries.
+        """
 
     # === Begin MUMPS snippet: INFO(5) page 98 from userguide_5.8.1.txt:5438-5438 ===
     # INFO(5) - after analysis: Estimated maximum front size on the processor.
     # === End MUMPS snippet ===
 
     @param(index=5, page=98)
-    class param_5:
-        "Placeholder parameter, not processed yet."
+    class est_max_front_order:
+        """
+        After analysis: estimated maximum front order on this process.
+
+        Units: matrix order (number of rows/columns of the largest frontal matrix).
+        """
 
     # === Begin MUMPS snippet: INFO(6) page 98 from userguide_5.8.1.txt:5439-5440 ===
     # INFO(6) - after analysis: Number of nodes in the complete tree. The same value is returned on all
@@ -1956,8 +2303,12 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=6, page=98)
-    class param_6:
-        "Placeholder parameter, not processed yet."
+    class tree_node_count:
+        """
+        After analysis: number of nodes in the complete elimination tree.
+
+        Same value is returned on all processes.
+        """
 
     # === Begin MUMPS snippet: INFO(7) page 98 from userguide_5.8.1.txt:5441-5442 ===
     # INFO(7) - after analysis: Minimum estimated size of the main internal integer workarray IS to run the
@@ -1965,8 +2316,13 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=7, page=98)
-    class param_7:
-        "Placeholder parameter, not processed yet."
+    class min_is_incore_fullrank:
+        """
+        After analysis: minimum estimated size of the main internal integer workarray
+        IS to run in-core numerical factorization.
+
+        Units: integer entries.
+        """
 
     # === Begin MUMPS snippet: INFO(8) page 98 from userguide_5.8.1.txt:5443-5452 ===
     # INFO(8) - after analysis: Minimum estimated size of the main internal real/complex workarray S to
@@ -1977,8 +2333,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=8, page=98)
-    class param_8:
-        "Placeholder parameter, not processed yet."
+    class min_s_incore_fullrank:
+        """
+        After analysis: minimum estimated size of the main internal real/complex
+        workarray S to run in-core numerical factorization with full-rank factors.
+
+        Units: real/complex entries (negative value means absolute value is in
+        millions of entries). Also the estimated minimum LWK_USER when provided.
+        """
 
     # === Begin MUMPS snippet: INFO(9) page 99 from userguide_5.8.1.txt:5454-5458 ===
     # INFO(9) - after factorization: Size of the real/complex space used on the processor to store the factor
@@ -1989,8 +2351,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=9, page=99)
-    class param_9:
-        "Placeholder parameter, not processed yet."
+    class factor_space_used:
+        """
+        After factorization: size of real/complex space used locally to store factor
+        matrices (may include low-rank factors).
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        A global sum is also available.
+        """
 
     # === Begin MUMPS snippet: INFO(10) page 99 from userguide_5.8.1.txt:5459-5460 ===
     # INFO(10) - after factorization: Size of the integer space used on the processor to store the factor
@@ -1998,16 +2366,24 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=10, page=99)
-    class param_10:
-        "Placeholder parameter, not processed yet."
+    class factor_int_space_used:
+        """
+        After factorization: size of integer space used locally to store the factor
+        matrices.
+
+        Units: integer entries.
+        """
 
     # === Begin MUMPS snippet: INFO(11) page 99 from userguide_5.8.1.txt:5461-5461 ===
     # INFO(11) - after factorization: Order of the largest frontal matrix processed on the processor.
     # === End MUMPS snippet ===
 
     @param(index=11, page=99)
-    class param_11:
-        "Placeholder parameter, not processed yet."
+    class largest_front_order:
+        """
+        After factorization: order of the largest frontal matrix processed on this
+        process.
+        """
 
     # === Begin MUMPS snippet: INFO(12) page 99 from userguide_5.8.1.txt:5462-5473 ===
     # INFO(12) - after factorization: Number of off-diagonal pivots selected on the processor if SYM=0
@@ -2025,24 +2401,42 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=12, page=99)
-    class param_12:
-        "Placeholder parameter, not processed yet."
+    class pivot_sign_summary:
+        """
+        After factorization: pivot sign information.
+
+        Interpretation:
+        - Unsymmetric: number of off-diagonal pivots selected locally.
+        - Symmetric (real/complex): number of negative pivots locally (complex
+          symmetric reports zero).
+
+        Notes: With parallel root processed by ScaLAPACK, root pivots are excluded by
+        default; inertia may be incorrect if `status` indicates specific conditions.
+        When null pivot detection or rank-revealing is active, null pivots are excluded
+        from this count. Global totals and related counts are available in the global
+        info arrays.
+        """
 
     # === Begin MUMPS snippet: INFO(13) page 99 from userguide_5.8.1.txt:5474-5474 ===
     # INFO(13) - after factorization: The number of postponed elimination because of numerical issues.
     # === End MUMPS snippet ===
 
     @param(index=13, page=99)
-    class param_13:
-        "Placeholder parameter, not processed yet."
+    class postponed_eliminations:
+        """
+        After factorization: number of eliminations postponed due to numerical issues
+        on this process.
+        """
 
     # === Begin MUMPS snippet: INFO(14) page 99 from userguide_5.8.1.txt:5475-5475 ===
     # INFO(14) - after factorization: Number of memory compresses.
     # === End MUMPS snippet ===
 
     @param(index=14, page=99)
-    class param_14:
-        "Placeholder parameter, not processed yet."
+    class memory_compressions:
+        """
+        After factorization: number of memory compaction/compression events.
+        """
 
     # === Begin MUMPS snippet: INFO(15) page 99 from userguide_5.8.1.txt:5476-5480 ===
     # INFO(15) - after analysis: estimated size in MegaBytes (millions of bytes) of all working space
@@ -2053,8 +2447,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=15, page=99)
-    class param_15:
-        "Placeholder parameter, not processed yet."
+    class est_work_mb_incore_fullrank:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        full-rank factorization/solve in-core.
+
+        Aggregates: global maximum and sum are provided in the global info.
+        Actual memory used is provided after factorization.
+        """
 
     # === Begin MUMPS snippet: INFO(16) page 99 from userguide_5.8.1.txt:5481-5484 ===
     # INFO(16) - after factorization: total size (in millions of bytes) of all MUMPS internal data allocated
@@ -2064,8 +2464,12 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=16, page=99)
-    class param_16:
-        "Placeholder parameter, not processed yet."
+    class allocated_bytes_factorization:
+        """
+        After factorization: total size (in millions of bytes) of all internal data
+        allocated during numerical factorization (excludes user workarray when
+        provided). Global maximum and sum are provided in the global info.
+        """
 
     # === Begin MUMPS snippet: INFO(17) page 99 from userguide_5.8.1.txt:5485-5488 ===
     # INFO(17) - after analysis: estimated size in MegaBytes (millions of bytes) of all working space to
@@ -2075,8 +2479,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=17, page=99)
-    class param_17:
-        "Placeholder parameter, not processed yet."
+    class est_work_mb_ooc_fullrank:
+        """
+        After analysis: estimated size in megabytes of all working space to run the
+        numerical phases out-of-core with the default strategy.
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory used is provided after factorization.
+        """
 
     # === Begin MUMPS snippet: INFO(18) page 99 from userguide_5.8.1.txt:5489-5490 ===
     # INFO(18) - after factorization: local number of null pivot rows detected locally when ICNTL(24)=1
@@ -2084,8 +2494,11 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=18, page=99)
-    class param_18:
-        "Placeholder parameter, not processed yet."
+    class null_pivots_local:
+        """
+        After factorization: local number of null pivot rows detected when null pivot
+        detection or rank-revealing is enabled.
+        """
 
     # === Begin MUMPS snippet: INFO(19) page 99 from userguide_5.8.1.txt:5491-5492 ===
     # INFO(19) - after analysis: Estimated size of the main internal integer workarray IS to run the
@@ -2093,8 +2506,13 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=19, page=99)
-    class param_19:
-        "Placeholder parameter, not processed yet."
+    class est_is_ooc:
+        """
+        After analysis: estimated size of the main internal integer workarray IS to run
+        the numerical factorization out-of-core.
+
+        Units: integer entries.
+        """
 
     # === Begin MUMPS snippet: INFO(20) page 99 from userguide_5.8.1.txt:5493-5496 ===
     # INFO(20) - after analysis: Estimated size of the main internal real/complex workarray S to run the
@@ -2104,8 +2522,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=20, page=99)
-    class param_20:
-        "Placeholder parameter, not processed yet."
+    class est_s_ooc:
+        """
+        After analysis: estimated size of the main internal real/complex workarray S to
+        run the numerical factorization out-of-core.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Also the estimated minimum LWK_USER when provided.
+        """
 
     # === Begin MUMPS snippet: INFO(21) page 99 from userguide_5.8.1.txt:5497-5499 ===
     # INFO(21) - after factorization: Effective space used in the main real/complex workarray S– or in the
@@ -2114,8 +2538,13 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=21, page=99)
-    class param_21:
-        "Placeholder parameter, not processed yet."
+    class effective_s_used:
+        """
+        After factorization: effective space used in the main workarray S (or in the
+        user workarray when provided) to run the numerical factorization.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        """
 
     # === Begin MUMPS snippet: INFO(22) page 99 from userguide_5.8.1.txt:5500-5512 ===
     #       INFO(22) - after factorization: Size in millions of bytes of memory effectively used during
@@ -2128,8 +2557,16 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=22, page=99)
-    class param_22:
-        "Placeholder parameter, not processed yet."
+    class memory_used_mb_factorization:
+        """
+        After factorization: size in millions of bytes of memory effectively used
+        during factorization, including the part used from the user workarray when
+        provided.
+
+        Aggregates: global maximum and sum are provided in the global info. Differences
+        to estimates may result from numerical pivoting, parallelism, and effective BLR
+        compression rates.
+        """
 
     # === Begin MUMPS snippet: INFO(23) page 100 from userguide_5.8.1.txt:5513-5515 ===
     # INFO(23) - after factorization: total number of pivots eliminated on the processor. It may be used
@@ -2138,8 +2575,13 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=23, page=100)
-    class param_23:
-        "Placeholder parameter, not processed yet."
+    class pivots_eliminated_local:
+        """
+        After factorization: total number of pivots eliminated on this process.
+
+        Usage: can be used for distributed right-hand sides and/or distributed
+        solutions.
+        """
 
     # === Begin MUMPS snippet: INFO(24) page 100 from userguide_5.8.1.txt:5516-5520 ===
     # INFO(24) - after analysis: estimated number of entries in the factor matrices on the processor. If
@@ -2150,8 +2592,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=24, page=100)
-    class param_24:
-        "Placeholder parameter, not processed yet."
+    class est_factor_entries_local:
+        """
+        After analysis: estimated number of entries in factor matrices on this
+        process.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Unsymmetric: equals full-rank factor-space estimate; symmetric: strictly
+        smaller than that estimate. Global sum is provided in the global info.
+        """
 
     # === Begin MUMPS snippet: INFO(25) page 100 from userguide_5.8.1.txt:5521-5522 ===
     # INFO(25) - after factorization: number of tiny pivots (number of pivots modified by static pivoting)
@@ -2159,8 +2608,11 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=25, page=100)
-    class param_25:
-        "Placeholder parameter, not processed yet."
+    class tiny_pivots_local:
+        """
+        After factorization: number of tiny pivots modified by static pivoting on this
+        process.
+        """
 
     # === Begin MUMPS snippet: INFO(26) page 100 from userguide_5.8.1.txt:5523-5525 ===
     # INFO(26) - after solution: effective size in MegaBytes (millions of bytes) of all working space to run
@@ -2169,8 +2621,13 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=26, page=100)
-    class param_26:
-        "Placeholder parameter, not processed yet."
+    class work_mb_solution:
+        """
+        After solution: effective size in megabytes of all working space used to run
+        the solution phase.
+
+        Aggregates: global maximum and sum are provided in the global info.
+        """
 
     # === Begin MUMPS snippet: INFO(27) page 100 from userguide_5.8.1.txt:5526-5530 ===
     # INFO(27) - after factorization: effective number of entries in factor matrices assuming full-rank
@@ -2181,8 +2638,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=27, page=100)
-    class param_27:
-        "Placeholder parameter, not processed yet."
+    class factor_entries_fullrank_local:
+        """
+        After factorization: effective number of entries in factor matrices assuming
+        full-rank factorization.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Relationship: equals factor space used in the unsymmetric case; less than or
+        equal in the symmetric case. Global sum is available.
+        """
 
     # === Begin MUMPS snippet: INFO(28) page 100 from userguide_5.8.1.txt:5531-5534 ===
     # INFO(28) - after factorization: effective number of entries in factors on the processor taking into
@@ -2192,8 +2656,14 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=28, page=100)
-    class param_28:
-        "Placeholder parameter, not processed yet."
+    class factor_entries_effective_local:
+        """
+        After factorization: effective number of entries in factors accounting for BLR
+        compression.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Equals the full-rank entry count when BLR is inactive or yields no compression.
+        """
 
     # === Begin MUMPS snippet: INFO(29) page 100 from userguide_5.8.1.txt:5535-5539 ===
     # INFO(29) - after analysis: minimum estimated size of the main internal real/complex workarray S
@@ -2204,8 +2674,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=29, page=100)
-    class param_29:
-        "Placeholder parameter, not processed yet."
+    class min_s_incore_lowrank_factors:
+        """
+        After analysis: minimum estimated size of the main internal real/complex
+        workarray S to run in-core numerical factorization when BLR factors are stored
+        low-rank.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Also the estimated minimum LWK_USER when provided.
+        """
 
     # === Begin MUMPS snippet: INFO(30) page 100 from userguide_5.8.1.txt:5540-5549 ===
     # INFO(30) and INFO(31) - after analysis: estimated size in MegaBytes (millions of bytes) of all
@@ -2221,8 +2698,16 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=30, page=100)
-    class param_30:
-        "Placeholder parameter, not processed yet."
+    class work_mb_lr_incore:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        low-rank factorization/solve with low-rank factors in-core (compression rate
+        as configured).
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory after factorization is available; differences reflect pivoting and
+        effective compression.
+        """
 
     # === Begin MUMPS snippet: INFO(31) page 100 from userguide_5.8.1.txt:5540-5549 ===
     # INFO(30) and INFO(31) - after analysis: estimated size in MegaBytes (millions of bytes) of all
@@ -2238,8 +2723,16 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=31, page=100)
-    class param_31:
-        "Placeholder parameter, not processed yet."
+    class work_mb_lr_ooc:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        low-rank factorization/solve with low-rank factors out-of-core (compression
+        rate as configured).
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory after factorization is available; differences reflect pivoting and
+        effective compression.
+        """
 
     # === Begin MUMPS snippet: INFO(32) page 100 from userguide_5.8.1.txt:5550-5554 ===
     # INFO(32) - after analysis: minimum estimated size of the main internal real/complex workarray S
@@ -2250,8 +2743,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=32, page=100)
-    class param_32:
-        "Placeholder parameter, not processed yet."
+    class min_s_incore_lr_factors_cb:
+        """
+        After analysis: minimum estimated size of the main internal real/complex
+        workarray S to run in-core when both BLR factors and contribution blocks are
+        stored low-rank.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Also the estimated minimum LWK_USER when provided.
+        """
 
     # === Begin MUMPS snippet: INFO(33) page 100 from userguide_5.8.1.txt:5555-5559 ===
     # INFO(33) - after analysis: minimum estimated size of the main internal real/complex workarray S to
@@ -2262,8 +2762,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=33, page=100)
-    class param_33:
-        "Placeholder parameter, not processed yet."
+    class min_s_ooc_lr_factors_cb:
+        """
+        After analysis: minimum estimated size of the main internal real/complex
+        workarray S to run out-of-core when both BLR factors and contribution blocks
+        are stored low-rank.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Also the estimated minimum LWK_USER when provided.
+        """
 
     # === Begin MUMPS snippet: INFO(34) page 100 from userguide_5.8.1.txt:5560-5572 ===
     # INFO(34) and INFO(35) - after analysis: estimated size in MegaBytes (millions of bytes) of
@@ -2278,8 +2785,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=34, page=100)
-    class param_34:
-        "Placeholder parameter, not processed yet."
+    class work_mb_lr_factors_cb_incore:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        low-rank factorization/solve with both low-rank factors and contribution
+        blocks in-core.
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory after factorization is available.
+        """
 
     # === Begin MUMPS snippet: INFO(35) page 100 from userguide_5.8.1.txt:5560-5572 ===
     # INFO(34) and INFO(35) - after analysis: estimated size in MegaBytes (millions of bytes) of
@@ -2294,8 +2808,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=35, page=100)
-    class param_35:
-        "Placeholder parameter, not processed yet."
+    class work_mb_lr_factors_cb_ooc:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        low-rank factorization/solve with both low-rank factors and contribution
+        blocks out-of-core.
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory after factorization is available.
+        """
 
     # === Begin MUMPS snippet: INFO(36) page 101 from userguide_5.8.1.txt:5573-5577 ===
     # INFO(36) - after analysis: minimum estimated size of the main internal real/complex workarray
@@ -2306,8 +2827,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=36, page=101)
-    class param_36:
-        "Placeholder parameter, not processed yet."
+    class min_s_ooc_cb_lowrank:
+        """
+        After analysis: minimum estimated size of the main internal real/complex
+        workarray S to run out-of-core when contribution blocks are stored low-rank
+        and factors are full-rank.
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        Also the estimated minimum LWK_USER when provided.
+        """
 
     # === Begin MUMPS snippet: INFO(37) page 101 from userguide_5.8.1.txt:5578-5586 ===
     # INFO(37) and INFO(38) - after analysis: estimated size in MegaBytes (millions of bytes) of
@@ -2322,8 +2850,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=37, page=101)
-    class param_37:
-        "Placeholder parameter, not processed yet."
+    class work_mb_cb_only_incore:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        factorization/solve with contribution blocks stored low-rank in-core (factors
+        full-rank).
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory after factorization is available.
+        """
 
     # === Begin MUMPS snippet: INFO(38) page 101 from userguide_5.8.1.txt:5578-5586 ===
     # INFO(37) and INFO(38) - after analysis: estimated size in MegaBytes (millions of bytes) of
@@ -2338,8 +2873,15 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=38, page=101)
-    class param_38:
-        "Placeholder parameter, not processed yet."
+    class work_mb_cb_only_ooc:
+        """
+        After analysis: estimated size in megabytes of all working space to perform
+        factorization/solve with contribution blocks stored low-rank out-of-core
+        (factors full-rank).
+
+        Aggregates: global maximum and sum are provided in the global info. Actual
+        memory after factorization is available.
+        """
 
     # === Begin MUMPS snippet: INFO(39) page 101 from userguide_5.8.1.txt:5587-5589 ===
     # INFO(39) - after factorization: effective size of the main internal real/complex workarray S (allocated
@@ -2348,8 +2890,13 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=39, page=101)
-    class param_39:
-        "Placeholder parameter, not processed yet."
+    class s_used_factorization:
+        """
+        After factorization: effective size of the main real/complex workarray S used
+        during numerical factorization (allocated internally or by the user).
+
+        Units: entries (negative value means absolute value is in millions of entries).
+        """
 
     # === Begin MUMPS snippet: INFO(40) page 101 from userguide_5.8.1.txt:5590-5596 ===
     # INFO(40) - after factorization: can only be nonzero for real symmetric matrices, in case the null
@@ -2362,8 +2909,28 @@ class INFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=40, page=101)
-    class param_40:
-        "Placeholder parameter, not processed yet."
+    class negative_null_pivots_local:
+        """
+        After factorization (real symmetric only): number of negative pivots among the
+        null pivots / deficiency detected when null pivot detection or rank-revealing
+        is enabled.
+
+        Notes: For singular matrices, this may vary between runs due to rounding.
+        Pivots counted here are excluded from the negative non-null pivot count.
+        Global totals and deficiency counts are available in the global info arrays.
+        """
+
+
+# -------------
+# INFOG members
+# -------------
+
+
+class INFOG(RawArray):
+    f"""Global integer info array INFOG(1..{LEN_INFOG})."""
+
+    def __init__(self, size: int = LEN_INFOG):
+        super().__init__(size, default=0)
 
 
 # -------------
@@ -2383,8 +2950,14 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=1, page=97)
-    class param_1:
-        "Placeholder parameter, not processed yet."
+    class est_flops_elimination:
+        """
+        After analysis: estimated number of floating-point operations on this
+        processor for the elimination process.
+
+        Units: operations (count). Scope: local to this process.
+        See also the global estimate.
+        """
 
     # === Begin MUMPS snippet: RINFO(2) page 97 from userguide_5.8.1.txt:5376-5377 ===
     # RINFO(2) - after factorization: The number of floating-point operations on the processor for the
@@ -2392,8 +2965,13 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=2, page=97)
-    class param_2:
-        "Placeholder parameter, not processed yet."
+    class flops_assembly:
+        """
+        After factorization: number of floating-point operations on this processor
+        for the assembly process.
+
+        Units: operations (count). Scope: local to this process.
+        """
 
     # === Begin MUMPS snippet: RINFO(3) page 97 from userguide_5.8.1.txt:5378-5380 ===
     # RINFO(3) - after factorization: The number of floating-point operations on the processor for the
@@ -2402,8 +2980,14 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=3, page=97)
-    class param_3:
-        "Placeholder parameter, not processed yet."
+    class flops_elimination_fullrank:
+        """
+        After factorization: number of floating-point operations on this processor
+        for the elimination process. When BLR is activated, this represents the
+        theoretical count for a standard full-rank factorization.
+
+        Units: operations (count). Compare with the effective count.
+        """
 
     # === Begin MUMPS snippet: RINFO(4) page 97 from userguide_5.8.1.txt:5381-5384 ===
     # RINFO(4) - after factorization: The effective number of floating-point operations on the processor
@@ -2413,8 +2997,15 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=4, page=97)
-    class param_4:
-        "Placeholder parameter, not processed yet."
+    class flops_elimination_effective:
+        """
+        After factorization: effective number of floating-point operations on this
+        processor for the elimination process.
+
+        Relationship: equals the theoretical count when BLR is not activated and is
+        typically smaller when BLR is activated and compresses.
+        Units: operations (count).
+        """
 
     # === Begin MUMPS snippet: RINFO(5) page 97 from userguide_5.8.1.txt:5385-5401 ===
     # RINFO(5) - after analysis: if the user decides to perform an out-of-core factorization
@@ -2433,8 +3024,21 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=5, page=97)
-    class param_5:
-        "Placeholder parameter, not processed yet."
+    class est_disk_mb_ooc:
+        """
+        After analysis: rough estimate of the disk space, in megabytes, of the
+        files written by this processor if out-of-core factorization is selected.
+
+        Behavior:
+        - Full-rank analysis: computed for full-rank factorization.
+        - Low-rank analysis: computed assuming in-core low-rank storage of BLR
+          fronts during factorization. If factors are later stored full-rank, see the
+          factor-space estimate to obtain a disk-space estimate.
+
+        The effective size (after factorization) is reported separately; the total
+        estimated disk space over all processes is available globally.
+        Units: megabytes.
+        """
 
     # === Begin MUMPS snippet: RINFO(6) page 98 from userguide_5.8.1.txt:5402-5404 ===
     # RINFO(6) - after factorization: in the case of an out-of-core execution (ICNTL(22)=1), the size in
@@ -2443,8 +3047,14 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=6, page=98)
-    class param_6:
-        "Placeholder parameter, not processed yet."
+    class disk_mb_ooc:
+        """
+        After factorization (out-of-core): disk space, in megabytes, used by the
+        files written by this processor.
+
+        A global total over all processors is also available.
+        Units: megabytes.
+        """
 
     # === Begin MUMPS snippet: RINFO(7) page 98 from userguide_5.8.1.txt:5405-5406 ===
     # RINFO(7) - after each job: The size (in MegaBytes) of the file used to save the data on the processor
@@ -2452,16 +3062,26 @@ class RINFO(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=7, page=98)
-    class param_7:
-        "Placeholder parameter, not processed yet."
+    class save_file_mb:
+        """
+        After each job: size, in megabytes, of the file used to save the data on
+        this processor.
+
+        Units: megabytes. See the save/restore subsection.
+        """
 
     # === Begin MUMPS snippet: RINFO(8) page 98 from userguide_5.8.1.txt:5407-5407 ===
     # RINFO(8) - after each job: The size (in MegaBytes) of the MUMPS structure.
     # === End MUMPS snippet ===
 
     @param(index=8, page=98)
-    class param_8:
-        "Placeholder parameter, not processed yet."
+    class mumps_structure_mb:
+        """
+        After each job: size, in megabytes, of the MUMPS structure on this
+        processor.
+
+        Units: megabytes.
+        """
 
 
 # --------------
@@ -2481,8 +3101,13 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=1, page=101)
-    class param_1:
-        "Placeholder parameter, not processed yet."
+    class est_flops_elimination:
+        """
+        After analysis: estimated total floating-point operations, over all processors,
+        for the elimination process.
+
+        Units: operations (count). Scope: global.
+        """
 
     # === Begin MUMPS snippet: RINFOG(2) page 101 from userguide_5.8.1.txt:5606-5607 ===
     # RINFOG(2) - after factorization: the total number of floating-point operations (on all processors) for
@@ -2490,8 +3115,13 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=2, page=101)
-    class param_2:
-        "Placeholder parameter, not processed yet."
+    class flops_assembly:
+        """
+        After factorization: total floating-point operations, over all processors, for
+        the assembly process.
+
+        Units: operations (count). Scope: global.
+        """
 
     # === Begin MUMPS snippet: RINFOG(3) page 101 from userguide_5.8.1.txt:5608-5610 ===
     # RINFOG(3) - after factorization: the total number of floating-point operations (on all processors) for
@@ -2500,8 +3130,14 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=3, page=101)
-    class param_3:
-        "Placeholder parameter, not processed yet."
+    class flops_elimination_fullrank:
+        """
+        After factorization: total floating-point operations, over all processors, for
+        the elimination process. When BLR is activated, this is the theoretical count
+        for a standard full-rank factorization.
+
+        Units: operations (count). Compare with the effective total.
+        """
 
     # === Begin MUMPS snippet: RINFOG(4) page 101 from userguide_5.8.1.txt:5611-5612 ===
     # RINFOG(4) to RINFOG(8) - after solve with error analysis: Only returned if ICNTL(11) = 1 or 2.
@@ -2509,8 +3145,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=4, page=101)
-    class param_4:
-        "Placeholder parameter, not processed yet."
+    class err_analysis_stat_1:
+        """
+        After solve with error analysis enabled: first global statistic as defined in
+        the error-analysis subsection. Only returned when error analysis is on.
+        """
 
     # === Begin MUMPS snippet: RINFOG(5) from userguide_5.8.1.txt:2287-2290 ===
     # RINFOG(4)), the infinite norm of the computed solution (∥x̄∥∞ in RINFOG(5)), and the
@@ -2531,8 +3170,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=8, page=101)
-    class param_8:
-        "Placeholder parameter, not processed yet."
+    class err_analysis_stat_5:
+        """
+        After solve with error analysis enabled: fifth global statistic as defined in
+        the error-analysis subsection. Only returned when error analysis is on.
+        """
 
     # === Begin MUMPS snippet: RINFOG(9) page 101 from userguide_5.8.1.txt:5613-5614 ===
     # RINFOG(9) to RINFOG(11) - after solve with error analysis: Only returned if ICNTL(11) = 1.
@@ -2540,8 +3182,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=9, page=101)
-    class param_9:
-        "Placeholder parameter, not processed yet."
+    class err_analysis_stat_6:
+        """
+        After solve with error analysis enabled: global error estimate in solution.
+        Only returned when error analysis is set accordingly.
+        """
 
     # === Begin MUMPS snippet: RINFOG(11) page 101 from userguide_5.8.1.txt:5613-5614 ===
     # RINFOG(9) to RINFOG(11) - after solve with error analysis: Only returned if ICNTL(11) = 1.
@@ -2549,8 +3194,12 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=11, page=101)
-    class param_11:
-        "Placeholder parameter, not processed yet."
+    class err_analysis_stat_8:
+        """
+        After solve with error analysis enabled: third item in the (9..11) group of
+        global statistics (condition numbers or related measure), per subsection on
+        error analysis. Only returned when error analysis is on.
+        """
 
     # === Begin MUMPS snippet: RINFOG(12) page 101 from userguide_5.8.1.txt:5615-5621 ===
     # RINFOG(12) - after factorization: if the computation of the determinant was requested (see
@@ -2560,8 +3209,12 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=12, page=101)
-    class param_12:
-        "Placeholder parameter, not processed yet."
+    class determinant_real:
+        """
+        After factorization: real part of the determinant when determinant
+        computation is requested. Combine with the companion and the scaling power
+        to reconstruct the determinant.
+        """
 
     # === Begin MUMPS snippet: RINFOG(13) page 102 from userguide_5.8.1.txt:5623-5625 ===
     # RINFOG(13) - after factorization: if the computation of the determinant was requested (see
@@ -2570,8 +3223,12 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=13, page=102)
-    class param_13:
-        "Placeholder parameter, not processed yet."
+    class determinant_imag:
+        """
+        After factorization: imaginary part of the determinant in complex arithmetic
+        when determinant computation is requested. Combine with the companion and
+        the scaling power to reconstruct the determinant.
+        """
 
     # === Begin MUMPS snippet: RINFOG(14) page 102 from userguide_5.8.1.txt:5626-5629 ===
     # RINFOG(14) - after factorization: the total effective number of floating-point operations (on all
@@ -2581,8 +3238,14 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=14, page=102)
-    class param_14:
-        "Placeholder parameter, not processed yet."
+    class flops_elimination_effective:
+        """
+        After factorization: total effective floating-point operations, over all
+        processors, for the elimination process.
+
+        Relationship: equals the theoretical total when BLR is not activated; typically
+        smaller when BLR compresses.
+        """
 
     # === Begin MUMPS snippet: RINFOG(15) page 102 from userguide_5.8.1.txt:5630-5641 ===
     # RINFOG(15) - after analysis: if the user decides to perform an out-of-core factorization
@@ -2600,8 +3263,14 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=15, page=102)
-    class param_15:
-        "Placeholder parameter, not processed yet."
+    class est_total_disk_mb_ooc:
+        """
+        After analysis: rough estimate of the total disk space in megabytes for the
+        files written by all processors for an out-of-core factorization.
+
+        Behavior reflects whether analysis assumes full-rank or low-rank storage.
+        The effective total (after factorization) is reported separately.
+        """
 
     # === Begin MUMPS snippet: RINFOG(16) page 102 from userguide_5.8.1.txt:5642-5643 ===
     # RINFOG(16) - after factorization: in the case of an out-of-core execution (ICNTL(22)=1), the total
@@ -2609,8 +3278,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=16, page=102)
-    class param_16:
-        "Placeholder parameter, not processed yet."
+    class total_disk_mb_ooc:
+        """
+        After factorization (out-of-core): total disk space, in megabytes, used by the
+        files written by all processors.
+        """
 
     # === Begin MUMPS snippet: RINFOG(17) page 102 from userguide_5.8.1.txt:5644-5645 ===
     # RINFOG(17) - after each job: sum over all processors of the sizes (in MegaBytes) of the files used to
@@ -2618,8 +3290,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=17, page=102)
-    class param_17:
-        "Placeholder parameter, not processed yet."
+    class total_save_files_mb:
+        """
+        After each job: sum over all processors of the sizes, in megabytes, of the
+        save files used to persist the instance.
+        """
 
     # === Begin MUMPS snippet: RINFOG(18) page 102 from userguide_5.8.1.txt:5646-5647 ===
     # RINFOG(18) - after each job: sum over all processors of the sizes (in MegaBytes) of the MUMPS
@@ -2627,8 +3302,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=18, page=102)
-    class param_18:
-        "Placeholder parameter, not processed yet."
+    class total_structure_mb:
+        """
+        After each job: sum over all processors of the sizes, in megabytes, of the
+        MUMPS structures.
+        """
 
     # === Begin MUMPS snippet: RINFOG(19) page 102 from userguide_5.8.1.txt:5648-5650 ===
     # RINFOG(19) - after factorization: smallest pivot in absolute value selected during factorization of
@@ -2637,8 +3315,12 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=19, page=102)
-    class param_19:
-        "Placeholder parameter, not processed yet."
+    class smallest_pivot_with_null_static:
+        """
+        After factorization: smallest pivot (absolute value) selected during
+        factorization of the preprocessed matrix, including small pivots selected as
+        null pivots and pivots modified by static pivoting.
+        """
 
     # === Begin MUMPS snippet: RINFOG(20) page 102 from userguide_5.8.1.txt:5651-5655 ===
     # RINFOG(20) - after factorization: smallest pivot in absolute value selected during factorization of the
@@ -2649,8 +3331,13 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=20, page=102)
-    class param_20:
-        "Placeholder parameter, not processed yet."
+    class smallest_pivot_excluding_null_static:
+        """
+        After factorization: smallest pivot (absolute value) selected during
+        factorization of the preprocessed matrix, excluding small pivots selected as
+        null pivots and pivots modified by static pivoting. A very large value can
+        indicate all pivots fell in those categories.
+        """
 
     # === Begin MUMPS snippet: RINFOG(21) page 102 from userguide_5.8.1.txt:5656-5657 ===
     # RINFOG(21) (experimental, subject to change in the future) - after factorization: largest pivot in
@@ -2658,8 +3345,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=21, page=102)
-    class param_21:
-        "Placeholder parameter, not processed yet."
+    class largest_pivot_preprocessed:
+        """
+        Experimental (subject to change): largest pivot (absolute value) selected
+        during factorization of the preprocessed matrix.
+        """
 
     # === Begin MUMPS snippet: RINFOG(22) page 102 from userguide_5.8.1.txt:5658-5659 ===
     # RINFOG(22) - after factorization: total number of floating-point operations offloaded to the
@@ -2667,8 +3357,11 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=22, page=102)
-    class param_22:
-        "Placeholder parameter, not processed yet."
+    class total_flops_offloaded:
+        """
+        After factorization: total floating-point operations offloaded to the
+        accelerator(s) by all MPI processes.
+        """
 
     # === Begin MUMPS snippet: RINFOG(23) page 102 from userguide_5.8.1.txt:5660-5661 ===
     # RINFOG(23) - after factorization: average (over all MPI processes) time spent in operations offloaded
@@ -2676,14 +3369,18 @@ class RINFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=23, page=102)
-    class param_23:
-        "Placeholder parameter, not processed yet."
+    class avg_time_offloaded:
+        """
+        After factorization: average time, over all MPI processes, spent in
+        operations offloaded to the accelerator(s), including communication.
+        """
 
 
 __all__ = [
     "ICNTL",
     "CNTL",
     "INFO",
+    "INFOG",
     "RINFO",
     "RINFOG",
 ]
