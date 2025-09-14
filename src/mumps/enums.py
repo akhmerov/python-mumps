@@ -85,6 +85,7 @@ LEN_INFOG = 80
 LEN_RINFO = 40
 LEN_RINFOG = 40
 
+
 # -------------
 # ICNTL members
 # -------------
@@ -3238,8 +3239,19 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=1, page=102)
-    class param_1:
-        "Placeholder parameter, not processed yet."
+    class status_global:
+        """
+        Global call return status aggregated across all processes.
+
+        Interpretation:
+        - 0: last call successful.
+        - Negative: error code (see Section 8).
+        - Positive: warning code.
+
+        Notes: After successfully saving or restoring an instance, this value is
+        reset to 0 even if it was nonzero at save time. This value is identical
+        on all processes.
+        """
 
     # === Begin MUMPS snippet: INFOG(2) page 102 from userguide_5.8.1.txt:5670-5693 ===
     #  INFOG(2) holds additional information about the error or the warning.
@@ -3265,8 +3277,15 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=2, page=102)
-    class param_2:
-        "Placeholder parameter, not processed yet."
+    class status_detail_global:
+        """
+        Global detail for error/warning corresponding to the global status.
+
+        Aggregation rule: INFOG(1:2) equals INFO(1:2) of the process with the
+        most negative local status. For example, if process p has the most
+        negative status, then INFOG(1)=INFO(1) and INFOG(2)=INFO(2) from that
+        process, replicated globally.
+        """
 
     # === Begin MUMPS snippet: INFOG(4) page 103 from userguide_5.8.1.txt:5694-5696 ===
     # INFOG(4) - after analysis: total (sum over all processors) estimated integer workspace to store the
@@ -3275,8 +3294,14 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=4, page=103)
-    class param_4:
-        "Placeholder parameter, not processed yet."
+    class est_factor_int_space_fullrank_global:
+        """
+        After analysis: total estimated integer workspace to store factor matrices
+        over all processes, assuming full-rank storage of the factors.
+
+        Units: integer entries (negative value means absolute value is in
+        millions of entries).
+        """
 
     # === Begin MUMPS snippet: INFOG(5) page 103 from userguide_5.8.1.txt:5697-5702 ===
     # INFOG(5) - after analysis: estimated maximum front size in the complete tree.
@@ -3288,8 +3313,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=5, page=103)
-    class param_5:
-        "Placeholder parameter, not processed yet."
+    class est_max_front_order_global:
+        """
+        After analysis: estimated maximum front order in the complete tree
+        (global across all processes).
+
+        Units: matrix order (rows/columns of the largest frontal matrix).
+        """
 
     # === Begin MUMPS snippet: INFOG(8) page 103 from userguide_5.8.1.txt:5703-5706 ===
     # INFOG(8) - after analysis: structural symmetry in percent (100 : symmetric, 0 : fully unsymmetric)
@@ -3299,8 +3329,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=8, page=103)
-    class param_8:
-        "Placeholder parameter, not processed yet."
+    class structural_symmetry_percent:
+        """
+        After analysis: structural symmetry of the permuted matrix in percent.
+
+        Range: 0 (fully unsymmetric) to 100 (symmetric). Value -1 indicates the
+        symmetry was not computed (elemental input or block analysis).
+        """
 
     # === Begin MUMPS snippet: INFOG(9) page 103 from userguide_5.8.1.txt:5707-5710 ===
     # INFOG(9) - after factorization: total (sum over all processors) real/complex workspace to store the
@@ -3310,8 +3345,15 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=9, page=103)
-    class param_9:
-        "Placeholder parameter, not processed yet."
+    class factor_space_used_global:
+        """
+        After factorization: total real/complex workspace used to store factor
+        matrices across all processes, possibly including low-rank factors.
+
+        Units: entries (negative value means absolute value is in millions of
+        entries). A disk-space aggregate after out-of-core factorization is
+        available in the global floating-point info.
+        """
 
     # === Begin MUMPS snippet: INFOG(10) page 103 from userguide_5.8.1.txt:5711-5713 ===
     # INFOG(10) - after factorization: total (sum over all processors) integer workspace to store the factor
@@ -3320,8 +3362,14 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=10, page=103)
-    class param_10:
-        "Placeholder parameter, not processed yet."
+    class factor_int_space_used_global:
+        """
+        After factorization: total integer workspace used to store factor matrices
+        across all processes.
+
+        Units: integer entries (negative value means absolute value is in
+        millions of entries).
+        """
 
     # === Begin MUMPS snippet: INFOG(11) page 103 from userguide_5.8.1.txt:5714-5725 ===
     # INFOG(11) - after factorization: order of largest frontal matrix.
@@ -3339,8 +3387,11 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=11, page=103)
-    class param_11:
-        "Placeholder parameter, not processed yet."
+    class largest_front_order_global:
+        """
+        After factorization: order of the largest frontal matrix across all
+        processes.
+        """
 
     # === Begin MUMPS snippet: INFOG(13) page 103 from userguide_5.8.1.txt:5726-5737 ===
     #       INFOG(13) - after factorization: total number of delayed pivots. A variable of the original matrix may
@@ -3352,8 +3403,14 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=13, page=103)
-    class param_13:
-        "Placeholder parameter, not processed yet."
+    class delayed_pivots_total:
+        """
+        After factorization: total number of delayed pivots across all processes.
+
+        A large number (e.g., >10% of the problem order) may indicate numerical
+        difficulties; consider adjusting numerical preprocessing controls (see
+        ICNTL(6), ICNTL(8), ICNTL(12)).
+        """
 
     # === Begin MUMPS snippet: INFOG(14) page 104 from userguide_5.8.1.txt:5738-5743 ===
     # INFOG(14) - after factorization: total number of memory compresses.
@@ -3365,8 +3422,11 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=14, page=104)
-    class param_14:
-        "Placeholder parameter, not processed yet."
+    class memory_compressions_total:
+        """
+        After factorization: total number of memory compaction/compression events
+        across all processes.
+        """
 
     # === Begin MUMPS snippet: INFOG(18) page 104 from userguide_5.8.1.txt:5744-5749 ===
     # INFOG(18) and INFOG(19) - after factorization: size in millions of bytes of all MUMPS internal data
@@ -3378,8 +3438,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=18, page=104)
-    class param_18:
-        "Placeholder parameter, not processed yet."
+    class allocated_mb_factorization_max_global:
+        """
+        After factorization: maximum, over all processes, of the size in millions
+        of bytes of all MUMPS internal data allocated during factorization.
+
+        Excludes memory provided by the user for local workarrays.
+        """
 
     # === Begin MUMPS snippet: INFOG(19) page 104 from userguide_5.8.1.txt:5744-5749 ===
     # INFOG(18) and INFOG(19) - after factorization: size in millions of bytes of all MUMPS internal data
@@ -3391,8 +3456,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=19, page=104)
-    class param_19:
-        "Placeholder parameter, not processed yet."
+    class allocated_mb_factorization_sum_global:
+        """
+        After factorization: sum, over all processes, of the size in millions of
+        bytes of all MUMPS internal data allocated during factorization.
+
+        Excludes memory provided by the user for local workarrays.
+        """
 
     # === Begin MUMPS snippet: INFOG(20) page 104 from userguide_5.8.1.txt:5750-5753 ===
     # INFOG(20) - after analysis: estimated number of entries in the factors assuming full-rank factorization.
@@ -3402,8 +3472,15 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=20, page=104)
-    class param_20:
-        "Placeholder parameter, not processed yet."
+    class est_factor_entries_fullrank_global:
+        """
+        After analysis: estimated total number of entries in the factor matrices
+        over all processes, assuming full-rank factorization.
+
+        Units: entries (negative value means absolute value is in millions of
+        entries). Unsymmetric: equals the global full-rank factor-space estimate;
+        symmetric: strictly smaller than that estimate.
+        """
 
     # === Begin MUMPS snippet: INFOG(21) page 104 from userguide_5.8.1.txt:5754-5759 ===
     # INFOG(21) and INFOG(22) - after factorization: size in millions of bytes of memory effectively
@@ -3415,8 +3492,15 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=21, page=104)
-    class param_21:
-        "Placeholder parameter, not processed yet."
+    class memory_used_mb_factorization_max_global:
+        """
+        After factorization: maximum, over all processes, of memory effectively
+        used (in millions of bytes) during factorization.
+
+        Includes memory effectively used from user workarrays when provided.
+        Differences to estimates may reflect pivoting, parallelism, and BLR
+        compression effectiveness.
+        """
 
     # === Begin MUMPS snippet: INFOG(22) page 104 from userguide_5.8.1.txt:5754-5759 ===
     # INFOG(21) and INFOG(22) - after factorization: size in millions of bytes of memory effectively
@@ -3428,8 +3512,15 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=22, page=104)
-    class param_22:
-        "Placeholder parameter, not processed yet."
+    class memory_used_mb_factorization_sum_global:
+        """
+        After factorization: sum, over all processes, of memory effectively used
+        (in millions of bytes) during factorization.
+
+        Includes memory effectively used from user workarrays when provided.
+        Differences to estimates may reflect pivoting, parallelism, and BLR
+        compression effectiveness.
+        """
 
     # === Begin MUMPS snippet: INFOG(23) page 104 from userguide_5.8.1.txt:5760-5767 ===
     # INFOG(23) - after analysis: value of ICNTL(6) effectively used.
@@ -3443,8 +3534,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=23, page=104)
-    class param_23:
-        "Placeholder parameter, not processed yet."
+    class icntl_6_effective:
+        """
+        After analysis: effective value used for ICNTL(6) (global context).
+
+        This records the setting effectively applied during analysis and can guide
+        adjustments to numerical preprocessing.
+        """
 
     # === Begin MUMPS snippet: INFOG(28) page 104 from userguide_5.8.1.txt:5768-5770 ===
     # INFOG(28) - after factorization: size of the null space, resulting from detection of null pivot rows
@@ -3453,8 +3549,11 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=28, page=104)
-    class param_28:
-        "Placeholder parameter, not processed yet."
+    class null_space_dimension:
+        """
+        After factorization: size of the null space detected from null pivot rows
+        and singularities on the root node when the relevant options are enabled.
+        """
 
     # === Begin MUMPS snippet: INFOG(29) page 104 from userguide_5.8.1.txt:5771-5775 ===
     # INFOG(29) - after factorization: effective number of entries in the factor matrices (sum over all
@@ -3465,8 +3564,16 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=29, page=104)
-    class param_29:
-        "Placeholder parameter, not processed yet."
+    class factor_entries_fullrank_global:
+        """
+        After factorization: effective total number of entries in the factor
+        matrices over all processes assuming full-rank storage of the factors.
+
+        Units: entries (negative value means absolute value is in millions of
+        entries). When factors are stored full-rank, equals the global factor-space
+        used in the unsymmetric case and is less than or equal in the symmetric
+        case.
+        """
 
     # === Begin MUMPS snippet: INFOG(30) page 104 from userguide_5.8.1.txt:5776-5779 ===
     # INFOG(30) and INFOG(31) - after solution: size in millions of bytes of memory effectively used
@@ -3476,8 +3583,11 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=30, page=104)
-    class param_30:
-        "Placeholder parameter, not processed yet."
+    class memory_used_mb_solution_max_global:
+        """
+        After solution: maximum, over all processes, of memory effectively used
+        (in millions of bytes) during the solution phase.
+        """
 
     # === Begin MUMPS snippet: INFOG(31) page 104 from userguide_5.8.1.txt:5776-5779 ===
     # INFOG(30) and INFOG(31) - after solution: size in millions of bytes of memory effectively used
@@ -3487,8 +3597,11 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=31, page=104)
-    class param_31:
-        "Placeholder parameter, not processed yet."
+    class memory_used_mb_solution_sum_global:
+        """
+        After solution: sum, over all processes, of memory effectively used (in
+        millions of bytes) during the solution phase.
+        """
 
     # === Begin MUMPS snippet: INFOG(32) page 104 from userguide_5.8.1.txt:5780-5787 ===
     # INFOG(32) - after analysis: the type of analysis actually done (see ICNTL(28)). INFOG(32) has
@@ -3499,8 +3612,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=32, page=104)
-    class param_32:
-        "Placeholder parameter, not processed yet."
+    class analysis_type:
+        """
+        After analysis: type of analysis actually performed.
+        """
+
+        sequential = 1, "sequential analysis performed"
+        parallel = 2, "parallel analysis performed"
 
     # === Begin MUMPS snippet: INFOG(33) page 105 from userguide_5.8.1.txt:5789-5793 ===
     # INFOG(33): effective value used for ICNTL(8). It is set both after the analysis and the factorization
@@ -3511,8 +3629,14 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=33, page=105)
-    class param_33:
-        "Placeholder parameter, not processed yet."
+    class icntl_8_effective:
+        """
+        Effective value used for ICNTL(8).
+
+        Set after analysis and factorization. If left to automatic decision during
+        analysis, the decision may be deferred to factorization unless the user
+        specifies a concrete option before that phase.
+        """
 
     # === Begin MUMPS snippet: INFOG(34) page 105 from userguide_5.8.1.txt:5794-5797 ===
     # INFOG(34): if the computation of the determinant was requested (see ICNTL(33)), INFOG(34)
@@ -3522,8 +3646,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=34, page=105)
-    class param_34:
-        "Placeholder parameter, not processed yet."
+    class determinant_exponent:
+        """
+        Exponent of the determinant when its computation is requested.
+
+        See global floating-point info for the mantissa components; the
+        determinant is composed from those values with this exponent.
+        """
 
     # === Begin MUMPS snippet: INFOG(35) page 105 from userguide_5.8.1.txt:5798-5801 ===
     # INFOG(35) - after factorization: effective number of entries in the factors (sum over all processors)
@@ -3533,8 +3662,15 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=35, page=105)
-    class param_35:
-        "Placeholder parameter, not processed yet."
+    class factor_entries_effective_global:
+        """
+        After factorization: effective total number of entries in the factors over
+        all processes accounting for BLR compression.
+
+        Units: entries (negative value means absolute value is in millions of
+        entries). Equals the full-rank entry count when BLR is inactive or yields
+        no compression.
+        """
 
     # === Begin MUMPS snippet: INFOG(36) page 105 from userguide_5.8.1.txt:5802-5810 ===
     # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
@@ -3549,8 +3685,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=36, page=105)
-    class param_36:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_incore_max:
+        """
+        After analysis: maximum, over all processes, of estimated size (in
+        millions of bytes) of internal data to run low-rank factorization with
+        low-rank factors in-core for the configured memory and compression
+        settings.
+        """
 
     # === Begin MUMPS snippet: INFOG(37) page 105 from userguide_5.8.1.txt:5802-5810 ===
     # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
@@ -3565,8 +3706,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=37, page=105)
-    class param_37:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_incore_sum:
+        """
+        After analysis: sum, over all processes, of estimated size (in millions of
+        bytes) of internal data to run low-rank factorization with low-rank
+        factors in-core for the configured settings.
+        """
 
     # === Begin MUMPS snippet: INFOG(38) page 105 from userguide_5.8.1.txt:5802-5810 ===
     # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
@@ -3581,8 +3726,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=38, page=105)
-    class param_38:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_ooc_max:
+        """
+        After analysis: maximum, over all processes, of estimated size (in
+        millions of bytes) of internal data to run low-rank factorization with
+        low-rank factors out-of-core for the configured settings.
+        """
 
     # === Begin MUMPS snippet: INFOG(39) page 105 from userguide_5.8.1.txt:5802-5810 ===
     # INFOG(36), INFOG(37), INFOG(38), and INFOG(39) - after analysis: estimated size (in million
@@ -3597,8 +3746,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=39, page=105)
-    class param_39:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_ooc_sum:
+        """
+        After analysis: sum, over all processes, of estimated size (in millions of
+        bytes) of internal data to run low-rank factorization with low-rank
+        factors out-of-core for the configured settings.
+        """
 
     # === Begin MUMPS snippet: INFOG(40) page 105 from userguide_5.8.1.txt:5811-5819 ===
     # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
@@ -3613,8 +3766,13 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=40, page=105)
-    class param_40:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_cb_incore_max:
+        """
+        After analysis: estimated size (in millions of bytes) of internal data on
+        the most memory-consuming process to run low-rank factorization with
+        low-rank factors and low-rank contribution blocks in-core, for the
+        configured settings.
+        """
 
     # === Begin MUMPS snippet: INFOG(41) page 105 from userguide_5.8.1.txt:5811-5819 ===
     # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
@@ -3629,8 +3787,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=41, page=105)
-    class param_41:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_cb_incore_sum:
+        """
+        After analysis: sum, over all processes, of estimated size (in millions of
+        bytes) of internal data to run low-rank factorization with low-rank
+        factors and low-rank contribution blocks in-core.
+        """
 
     # === Begin MUMPS snippet: INFOG(42) page 105 from userguide_5.8.1.txt:5811-5819 ===
     # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
@@ -3645,8 +3807,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=42, page=105)
-    class param_42:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_cb_ooc_max:
+        """
+        After analysis: estimated size (in millions of bytes) of internal data on
+        the most memory-consuming process to run low-rank factorization with
+        low-rank factors and low-rank contribution blocks out-of-core.
+        """
 
     # === Begin MUMPS snippet: INFOG(43) page 105 from userguide_5.8.1.txt:5811-5819 ===
     # INFOG(40), INFOG(41), INFOG(42), and INFOG(43) - after analysis: estimated size (in million
@@ -3661,8 +3827,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=43, page=105)
-    class param_43:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_factors_cb_ooc_sum:
+        """
+        After analysis: sum, over all processes, of estimated size (in millions of
+        bytes) of internal data to run low-rank factorization with low-rank
+        factors and low-rank contribution blocks out-of-core.
+        """
 
     # === Begin MUMPS snippet: INFOG(44) page 105 from userguide_5.8.1.txt:5820-5828 ===
     # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
@@ -3677,8 +3847,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=44, page=105)
-    class param_44:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_cb_only_incore_max:
+        """
+        After analysis: estimated size (in millions of bytes) of internal data on
+        the most memory-consuming process to run low-rank factorization with
+        low-rank contribution blocks only in-core.
+        """
 
     # === Begin MUMPS snippet: INFOG(45) page 105 from userguide_5.8.1.txt:5820-5828 ===
     # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
@@ -3693,8 +3867,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=45, page=105)
-    class param_45:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_cb_only_incore_sum:
+        """
+        After analysis: sum, over all processes, of estimated size (in millions of
+        bytes) of internal data to run low-rank factorization with low-rank
+        contribution blocks only in-core.
+        """
 
     # === Begin MUMPS snippet: INFOG(46) page 105 from userguide_5.8.1.txt:5820-5828 ===
     # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
@@ -3709,8 +3887,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=46, page=105)
-    class param_46:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_cb_only_ooc_max:
+        """
+        After analysis: estimated size (in millions of bytes) of internal data on
+        the most memory-consuming process to run low-rank factorization with
+        low-rank contribution blocks only out-of-core.
+        """
 
     # === Begin MUMPS snippet: INFOG(47) page 105 from userguide_5.8.1.txt:5820-5828 ===
     # INFOG(44), INFOG(45), INFOG(46), and INFOG(47) - after analysis: estimated size (in million
@@ -3725,8 +3907,12 @@ class INFOG(RawArray):
     # === End MUMPS snippet ===
 
     @param(index=47, page=105)
-    class param_47:
-        "Placeholder parameter, not processed yet."
+    class est_internal_mb_lr_cb_only_ooc_sum:
+        """
+        After analysis: sum, over all processes, of estimated size (in millions of
+        bytes) of internal data to run low-rank factorization with low-rank
+        contribution blocks only out-of-core.
+        """
 
 
 # -------------
