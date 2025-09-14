@@ -1271,6 +1271,243 @@ def update_enums_inline() -> None:
     ug_path, ug_text, page_map = resolve_userguide_path_text_pagemap()
     if ug_text:
         ug_lines = ug_text.splitlines()
+        # Section 5.3 (COMM, PAR): extract the PAR paragraph specifically and inject after 'PAR enum'
+        # Strategy: find the 5.3 section bounds; within it, locate the paragraph starting with
+        # 'PAR (integer) must be initialized ...' and ending before the next blank-line block preceding 5.4
+        s53, e53 = find_body_section_span(
+            ug_lines,
+            r"^\s*5\.3\s+.*\(COMM,\s*PAR\)\s*$",
+            [r"^\s*5\.4\s+.*$"],
+        )
+        if s53 != -1 and e53 != -1 and e53 > s53:
+            par_start = -1
+            for k in range(s53, e53):
+                if re.match(
+                    r"^\s*PAR\s*\(integer\)\s+must\s+be\s+initialized.*$", ug_lines[k]
+                ):
+                    par_start = k
+                    break
+            if par_start != -1:
+                # Advance to include subsequent lines until we hit a double-blank boundary or section end
+                par_end = e53
+                # Stop at the first empty line followed by another empty line or by a section header
+                for k in range(par_start + 1, e53):
+                    # Heuristic: keep going while not starting a new numbered header like '5.x' or '5.x.y'
+                    if re.match(r"^\s*5\.[0-9].*$", ug_lines[k]):
+                        par_end = k
+                        break
+                par_lines = clean_and_dedent_block(ug_lines[par_start:par_end])
+                p53 = page_map[par_start] if 0 <= par_start < len(page_map) else None
+                block53 = make_snippet_comment_block(
+                    "SECTION(5.3-PAR)",
+                    ug_path.name if ug_path else None,
+                    p53,
+                    par_start,
+                    par_end,
+                    par_lines,
+                )
+
+                def _insert_or_replace_after_named_enum(
+                    file_lines: list[str], enum_name: str, block_lines: list[str]
+                ) -> None:
+                    """Insert or replace a block right after an '<NAME> enum' banner.
+
+                    We expect a banner formatted as:
+                        # ------
+                        # <NAME> enum
+                        # ------
+                    We insert after the bottom dashed line. If a prior block with the same
+                    begin marker exists, remove it first.
+                    """
+                    begin_prefix = (
+                        "# === Begin MUMPS snippet: SECTION(5.3-PAR)"
+                        if enum_name == "PAR"
+                        else "# === Begin MUMPS snippet: SUBSECTION(5.4.1-SYM)"
+                    )
+                    # Remove existing block if present (identified by prefix)
+                    begin_idx = None
+                    end_idx = None
+                    for i, ln in enumerate(file_lines):
+                        if ln.strip().startswith(begin_prefix):
+                            begin_idx = i
+                            for j in range(i + 1, len(file_lines)):
+                                if (
+                                    file_lines[j].strip()
+                                    == "# === End MUMPS snippet ==="
+                                ):
+                                    end_idx = j
+                                    break
+                            break
+                    if begin_idx is not None and end_idx is not None:
+                        del file_lines[begin_idx : end_idx + 1]
+                        if (
+                            begin_idx < len(file_lines)
+                            and file_lines[begin_idx].strip() == ""
+                        ):
+                            del file_lines[begin_idx]
+
+                    # Locate banner '# <NAME> enum'
+                    anchor = None
+                    for i, ln in enumerate(file_lines):
+                        if ln.strip() == f"# {enum_name} enum":
+                            anchor = i
+                            break
+                    insert_at = 0
+                    if anchor is not None:
+                        # find the bottom dashed line AFTER the anchor
+                        insert_at = anchor + 1
+                        dash_re = re.compile(r"^\s*#\s*-{3,}\s*$")
+                        for j in range(anchor + 1, min(anchor + 6, len(file_lines))):
+                            if dash_re.match(file_lines[j]):
+                                insert_at = j + 1
+                                break
+                    # Insert
+                    for bl in block_lines:
+                        file_lines.insert(insert_at, bl + "\n")
+                        insert_at += 1
+                    if (
+                        insert_at < len(file_lines)
+                        and file_lines[insert_at].strip() != ""
+                    ):
+                        file_lines.insert(insert_at, "\n")
+
+                _insert_or_replace_after_named_enum(lines, "PAR", block53)
+
+        # Section 5.1 (JOB): from '5.1 ... (JOB)' up to the header '5.1.1'
+        s51, e51 = find_body_section_span(
+            ug_lines,
+            r"^\s*5\.1\s+.*\(JOB\).*$",
+            [r"^\s*5\.1\.1\b.*$"],
+        )
+        if s51 != -1 and e51 != -1 and e51 > s51:
+            s51_lines = clean_and_dedent_block(ug_lines[s51:e51])
+            p51 = page_map[s51] if 0 <= s51 < len(page_map) else None
+
+            block51 = make_snippet_comment_block(
+                "SECTION(5.1-JOB)",
+                ug_path.name if ug_path else None,
+                p51,
+                s51,
+                e51,
+                s51_lines,
+            )
+
+            def _insert_or_replace_after_job_enum(
+                file_lines: list[str], block_lines: list[str]
+            ) -> None:
+                """Insert or replace the JOB section block right after the 'JOB enum' banner.
+
+                - If a block beginning with our unique marker exists, remove it first.
+                - Find the banner consisting of:
+                    # --------
+                    # JOB enum
+                    # --------
+                  and insert after the bottom dashed line.
+                - If the banner is not found, append at the beginning of the file.
+                """
+                # Remove existing block if present (identified by prefix)
+                begin_prefix = "# === Begin MUMPS snippet: SECTION(5.1-JOB)"
+                begin_idx = None
+                end_idx = None
+                for i, ln in enumerate(file_lines):
+                    if ln.strip().startswith(begin_prefix):
+                        begin_idx = i
+                        for j in range(i + 1, len(file_lines)):
+                            if file_lines[j].strip() == "# === End MUMPS snippet ===":
+                                end_idx = j
+                                break
+                        break
+                if begin_idx is not None and end_idx is not None:
+                    del file_lines[begin_idx : end_idx + 1]
+                    if (
+                        begin_idx < len(file_lines)
+                        and file_lines[begin_idx].strip() == ""
+                    ):
+                        del file_lines[begin_idx]
+
+                # Locate banner
+                anchor = None
+                for i, ln in enumerate(file_lines):
+                    if ln.strip() == "# JOB enum":
+                        anchor = i
+                        break
+                insert_at = 0
+                if anchor is not None:
+                    # find the dashed line AFTER the anchor
+                    insert_at = anchor + 1
+                    dash_re = re.compile(r"^\s*#\s*-{3,}\s*$")
+                    for j in range(anchor + 1, min(anchor + 6, len(file_lines))):
+                        if dash_re.match(file_lines[j]):
+                            insert_at = j + 1
+                            break
+                # Insert block
+                for bl in block_lines:
+                    file_lines.insert(insert_at, bl + "\n")
+                    insert_at += 1
+                if insert_at < len(file_lines) and file_lines[insert_at].strip() != "":
+                    file_lines.insert(insert_at, "\n")
+
+            _insert_or_replace_after_job_enum(lines, block51)
+        # Subsection 5.4.1 (SYM): from '5.4.1 ... (SYM)' up to the header '5.4.2'
+        s541, e541 = find_body_section_span(
+            ug_lines,
+            r"^\s*5\.4\.1\s+.*\(SYM\).*$",
+            [r"^\s*5\.4\.2\b.*$"],
+        )
+        if s541 != -1 and e541 != -1 and e541 > s541:
+            s541_lines = clean_and_dedent_block(ug_lines[s541:e541])
+            p541 = page_map[s541] if 0 <= s541 < len(page_map) else None
+            block541 = make_snippet_comment_block(
+                "SUBSECTION(5.4.1-SYM)",
+                ug_path.name if ug_path else None,
+                p541,
+                s541,
+                e541,
+                s541_lines,
+            )
+
+            # Reuse helper to insert below 'SYM enum' banner
+            def _insert_or_replace_after_named_enum_sym(
+                file_lines: list[str], block_lines: list[str]
+            ) -> None:
+                begin_prefix = "# === Begin MUMPS snippet: SUBSECTION(5.4.1-SYM)"
+                begin_idx = None
+                end_idx = None
+                for i, ln in enumerate(file_lines):
+                    if ln.strip().startswith(begin_prefix):
+                        begin_idx = i
+                        for j in range(i + 1, len(file_lines)):
+                            if file_lines[j].strip() == "# === End MUMPS snippet ===":
+                                end_idx = j
+                                break
+                        break
+                if begin_idx is not None and end_idx is not None:
+                    del file_lines[begin_idx : end_idx + 1]
+                    if (
+                        begin_idx < len(file_lines)
+                        and file_lines[begin_idx].strip() == ""
+                    ):
+                        del file_lines[begin_idx]
+                anchor = None
+                for i, ln in enumerate(file_lines):
+                    if ln.strip() == "# SYM enum":
+                        anchor = i
+                        break
+                insert_at = 0
+                if anchor is not None:
+                    insert_at = anchor + 1
+                    dash_re = re.compile(r"^\s*#\s*-{3,}\s*$")
+                    for j in range(anchor + 1, min(anchor + 6, len(file_lines))):
+                        if dash_re.match(file_lines[j]):
+                            insert_at = j + 1
+                            break
+                for bl in block_lines:
+                    file_lines.insert(insert_at, bl + "\n")
+                    insert_at += 1
+                if insert_at < len(file_lines) and file_lines[insert_at].strip() != "":
+                    file_lines.insert(insert_at, "\n")
+
+            _insert_or_replace_after_named_enum_sym(lines, block541)
         # Subsection 5.9 span: start at '5.9 ' and end at next '5.<digit+>' or start of section 6
         s59, e59 = find_body_section_span(
             ug_lines,

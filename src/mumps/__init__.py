@@ -12,6 +12,7 @@ from .mumps import (
     possible_orderings,
     schur_complement,
 )
+from .enums import JOB, PAR, SYM
 
 try:
     __version__ = version("python-mumps")
@@ -28,6 +29,9 @@ __all__ = [
     "possible_orderings",
     "orderings",
     "complex_to_real",
+    "JOB",
+    "PAR",
+    "SYM",
     "__version__",
     "test",
 ]

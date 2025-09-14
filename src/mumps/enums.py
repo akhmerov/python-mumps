@@ -75,6 +75,7 @@ from ._param_base import (
     _OneBasedArray,
     param,
 )
+from enum import IntEnum
 
 
 # Canonical lengths
@@ -84,6 +85,155 @@ LEN_INFO = 80
 LEN_INFOG = 80
 LEN_RINFO = 40
 LEN_RINFOG = 40
+
+
+# --------
+# JOB enum
+# --------
+
+# === Begin MUMPS snippet: SECTION(5.1-JOB) page 23 from userguide_5.8.1.txt:1334-1353 ===
+# 5.1      Principal actions of MUMPS (JOB)
+# JOB (integer) must be initialized by the user on all processors before a call to MUMPS. It controls the
+# main actions taken by MUMPS. It is not altered by MUMPS. Possible values of JOB are:
+#     • JOB= –1 initializes an instance of the package.
+#     • JOB= –2 terminates an instance of the package.
+#     • JOB= –3 save / restore feature: removes data saved to disk.
+#     • JOB= –4 after factorization or solve phases, frees all MUMPS internal data structures except the
+#       ones from analysis.
+#     • JOB= –200 (experimental, subject to change in the future) suppresses MUMPS out-of-core factor
+#       files associated to the calling MPI process and returns.
+#     • JOB= 1 performs the analysis phase.
+#     • JOB= 2 performs the factorization phase.
+#     • JOB= 3 computes the solution.
+#     • JOB= 4 combines the actions of JOB= 1 with those of JOB= 2.
+#     • JOB= 5 combines the actions of JOB=2 and JOB= 3.
+#     • JOB= 6 combines the actions of calls with JOB= 1, JOB= 2, and JOB= 3.
+#     • JOB= 7 save / restore feature: saves MUMPS internal data to disk.
+#     • JOB= 8 save / restore feature: restores MUMPS internal data from disk.
+#     • JOB= 9 computes before the solution phase a possible distribution for the right-hand sides.
+# === End MUMPS snippet ===
+
+
+class JOB(IntEnum):
+    """Principal actions of MUMPS (JOB).
+
+    Values control the main actions taken by MUMPS and must be set by the user
+    on all processes before calling into MUMPS. See Users' Guide Section 5.1.
+
+    Notes:
+    - The value is not altered by MUMPS.
+    - Value suppress_ooc_process_files is experimental and subject to change.
+    """
+
+    initialize = -1
+    finalize = -2
+    cleanup_saved = -3
+    free_except_analysis = -4
+    suppress_ooc_process_files = -200
+    analyze = 1
+    factorize = 2
+    solve = 3
+    analyze_and_factorize = 4
+    factorize_and_solve = 5
+    analyze_factorize_solve = 6
+    save = 7
+    restore = 8
+    compute_rhs_distribution = 9
+
+
+# --------
+# SYM enum
+# --------
+
+# === Begin MUMPS snippet: SUBSECTION(5.4.1-SYM) page 27 from userguide_5.8.1.txt:1513-1553 ===
+# 5.4.1     Matrix type (SYM)
+# The user must set the variable SYM to indicate which kind of matrix has to be factorize and consequently,
+# which factorization has to be performed.
+#  SYM (integer) must be initialized by the user on all processors before the initialization phase (JOB=
+#     –1) and is accessed by MUMPS only during this phase. It is not altered by MUMPS. Its value is
+#     communicated internally to the other phases as required. Possible values for SYM are:
+#          0 : A is unsymmetric.
+#          1 : A is assumed to be symmetric positive definite so that pivots are taken from the diagonal
+#              without numerical pivoting during the factorization. With this option, non-positive definite
+#              matrices that do not require pivoting can also be treated in certain cases (see remark below).
+#          2 : A is general symmetric
+#         Other values are treated as 0.
+#         Note that the value of SYM should be identical on all processors; if this is not the case, the value on
+#         processor 0 is used by the package. For the complex version, the value SYM=1 is currently treated
+#         as SYM=2. We do not have a version for Hermitian matrices in this release of MUMPS.
+# Remark for symmetric matrices (SYM=1). When SYM=1 is indicated by the user, an LDLT
+# factorization (in opposition to Cholesky factorization which requires positive diagonal pivots) of matrix
+# A is performed internally by the package, and numerical pivoting is switched off. Therefore, this
+# setting works for classes of matrices more general than positive definite matrices, including matrices with
+# negative pivots. However, this feature depends on the use of the ScaLAPACK library (see ICNTL(13))
+# to factorize the last dense block in the factorization of A associated to the root node of the elimination
+# tree. More precisely,
+#    • if ScaLAPACK is allowed for the last dense block (default in parallel, ICNTL(13)=0), then the
+#      presence of negative pivots in the part of the factorization processed with ScaLAPACK (subroutine
+#      P POTRF) will raise an error and the code -40 is then returned in INFOG(1);
+#    • if ScaLAPACK is not used (ICNTL(13)>0, or sequential execution, or last dense block detected
+#      to be too small), then negative pivots are allowed and the factorization will work for some classes of
+#      non-positive definite matrices where numerical pivoting is not necessary, e.g., symmetric negative
+#      matrices.
+#     The successful factorization of a symmetric matrix with SYM=1 is thus not an indication that the
+# matrix provided was symmetric positive definite. In order to verify that a matrix is positive definite,
+# the user can check that the number of negative pivots or inertia (INFOG(12)) is 0 on exit from the
+# factorization phase. Another approach to suppress numerical pivoting on symmetric matrices which is
+# compatible with the use of ScaLAPACK (see ICNTL(13)) consists in setting SYM=2 (general symmetric
+# matrices) with the relative threshold for pivoting CNTL(1) set to 0 (recommended strategy).
+# === End MUMPS snippet ===
+
+
+class SYM(IntEnum):
+    """Matrix type (SYM).
+
+    Indicates the symmetry of the input matrix and the factorization strategy.
+    Must be set before initialization and consistent across processes.
+    See Users' Guide Subsection 5.4.1.
+
+    Notes:
+    - For complex arithmetic, real_positive_definite is treated as symmetric
+      (no Hermitian mode).
+    - With real_positive_definite, numerical pivoting is disabled; ScaLAPACK behavior on
+      the root can impact handling of negative pivots (see ICNTL(13) and INFOG(12)).
+    """
+
+    unsymmetric = 0
+    real_positive_definite = 1
+    symmetric = 2
+
+
+# --------
+# PAR enum
+# --------
+
+# === Begin MUMPS snippet: SECTION(5.3-PAR) page 27 from userguide_5.8.1.txt:1497-1511 ===
+# PAR (integer) must be initialized by the user on all processors before the initialization phase (JOB=
+#    –1) and is accessed by MUMPS only during this phase. It is not altered by MUMPS and its value is
+#    communicated internally to the other phases as required. Possible values for PAR are:
+#         0 : The host is not involved in the parallel steps of the factorization and solve phases. The host
+#             will only hold the initial problem, perform symbolic computations during the analysis phase,
+#             distribute data, and collect results from other processors.
+#         1 : The host is also involved in the parallel steps of the factorization and solve phases.
+#        Other values are treated as 1.
+#        Note that the value of PAR should be identical on all processors; if this is not the case, the value on
+#        processor 0 (the host) is used by the package.
+#        If the initial problem is large and memory is an issue, PAR=1 is not recommended if the matrix is
+#        centralized on processor 0 because this can lead to memory imbalance, with processor 0 having a
+#        larger memory load than the other processors.
+# === End MUMPS snippet ===
+
+
+class PAR(IntEnum):
+    """Control of host participation in parallel phases (PAR).
+
+    Must be set before initialization and consistent across processes. Controls
+    whether the host participates in parallel computation. See Users' Guide
+    Section 5.3.
+    """
+
+    non_working_host = 0  # host is not involved in parallel steps
+    working_host = 1  # host participates in parallel steps (default treatment)
 
 
 # -------------

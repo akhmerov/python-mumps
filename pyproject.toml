@@ -46,7 +46,8 @@ line-length = 88
 
 [tool.codespell]
 skip = ["*.lock"]
-ignore-words-list = "arithmetics,groth,coo"
+# Add technical terms from manuals and APIs to avoid false positives
+ignore-words-list = "groth,coo,arithmetics,NodeND,NodeWND"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
