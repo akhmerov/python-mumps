@@ -236,7 +236,7 @@ class ICNTL(ParamArray):
         assembled = 0, "assembled matrix"
         element = 1, "elemental matrix"
 
-    # === Begin MUMPS snippet: ICNTL(6) page 73 from userguide_5.8.1.txt:4071-4099 ===
+    # === Begin MUMPS snippet: ICNTL(6) page 73 from userguide_5.8.1.txt:4071-4125 ===
     # ICNTL(6) permutes the matrix to a zero-free diagonal and/or scale the matrix (see Subsection 3.2 and
     # Subsection 5.5.2).
     #      Phase: accessed by the host and only during sequential analysis (ICNTL(28)=1)
@@ -266,6 +266,28 @@ class ICNTL(ParamArray):
     #        7 : Based on the structural symmetry of the input matrix and on the availability of the numerical
     #            values, the value of ICNTL(6) is automatically chosen by the software.
     #      Other values are treated as 0. On output from the analysis phase, INFOG(23) holds the value of
+    #      ICNTL(6) that was effectively used.
+    #      Default value: 7 (automatic choice done by the package)
+    #      Incompatibility: If the matrix is symmetric positive definite (SYM = 1), or in elemental format
+    #      (ICNTL(5)=1), or the parallel analysis is requested (ICNTL(28)=2) or the ordering is provided
+    #      by the user (ICNTL(7)=1), or the Schur option (ICNTL(19) = 1, 2, or 3) is required, or the
+    #      matrix is initially distributed (ICNTL(18)=1,2,3), then ICNTL(6) is treated as 0.
+    #      Related parameters: ICNTL(8), ICNTL(12)
+    #            Remarks: On assembled centralized unsymmetric matrices (ICNTL(5)=0, ICNTL(18)=0, SYM
+    #            = 0), if ICNTL(6)=1, 2, 3, 4, 5, 6 a column permutation (based on weighted bipartite matching
+    #            algorithms described in [23, 24]) is applied to the original matrix to get a zero-free diagonal.
+    #            The user is advised to set ICNTL(6) to a nonzero value when the matrix is very unsymmetric
+    #            in structure. On output to the analysis phase, when the column permutation is not the identity, the
+    #            pointer UNS PERM (internal data valid until a call to MUMPS with JOB= –2) provides access to the
+    #            permutation on the host processor (see Subsection 5.5.1). Otherwise, the pointer is not associated.
+    #            The column permutation is such that entry ai,uns perm(i) is on the diagonal of the permuted matrix.
+    #            On general assembled centralized symmetric matrices (ICNTL(5)=0, ICNTL(18)=0, SYM =
+    #            2), if ICNTL(6)=1, 2, 3, 4, 5, 6, the column permutation is internally used to determine a set of
+    #            recommended 1×1 and 2×2 pivots (see [25] and the description of ICNTL(12) in Subsection 6.1
+    #            for more details). We advise either to let MUMPS select the strategy (ICNTL(6) = 7) or to set
+    #            ICNTL(6) = 5 if the user knows that the matrix is for example an augmented system (which is a
+    #            system with a large zero diagonal block). On output from the analysis the pointer UNS PERM is not
+    #            associated.
     # === End MUMPS snippet ===
 
     @param(index=6, page=73)
@@ -304,7 +326,7 @@ class ICNTL(ParamArray):
         )
         automatic = 7, "automatic choice based on structure/values"
 
-    # === Begin MUMPS snippet: ICNTL(7) page 74 from userguide_5.8.1.txt:4127-4185 ===
+    # === Begin MUMPS snippet: ICNTL(7) page 74 from userguide_5.8.1.txt:4127-4190 ===
     #      ICNTL(7) computes a symmetric permutation (ordering) to determine the pivot order to be used for the
     #      factorization in case of sequential analysis (ICNTL(28)=1). See Subsection 3.2 and Subsection 5.6.
     #            Phase: accessed by the host and only during the sequential analysis phase (ICNTL(28) = 1).
@@ -326,7 +348,7 @@ class ICNTL(ParamArray):
     #                  mumps par%METIS OPTIONS after the MUMPS initialization phase (JOB= –1) and before
     #                  the analysis phase. Note that the METIS OPTIONS array of the MUMPS structure is of size 40,
     #                  which is large enough for both Metis 4.x and Metis 5.x versions. It is passed by MUMPS as the
-    #                  argument "options" to the METIS ordering routine METIS NodeAND (METIS NodeWND is
+    #                  argument “options” to the METIS ordering routine METIS NodeND (METIS NodeWND is
     #                  sometimes also called in case MUMPS was installed with Metis 4.x) during the analysis phase.
     #              6 : Approximate Minimum Degree with automatic quasi-dense row detection (QAMD) is used.
     #              7 : Automatic choice by the software during analysis phase. This choice will depend on the
@@ -358,6 +380,11 @@ class ICNTL(ParamArray):
     #      On output, the pointer array SYM PERM provides access, on the host processor, to the symmetric
     #      permutation that is effectively computed during the analysis phase by the MUMPS package, and
     #      INFOG(7) to the ordering option that was effectively chosen. In fact, the option corresponding to
+    #      ICNTL(7) may be forced by MUMPS when for example the ordering option chosen by the user is
+    #      not compatible with the value of ICNTL(12) or the necessary package is not installed.
+    #      SYM PERM(i), i=1, ... N, holds the position of variable i in the pivot order. In other words,
+    #      row/column i in the original matrix corresponds to row/column SYM PERM(i) in the reordered
+    #      matrix. See also Subsection 5.6.1.
     # === End MUMPS snippet ===
 
     @param(index=7, page=74)
@@ -483,7 +510,7 @@ class ICNTL(ParamArray):
         normal = 1, "solve A x = b"
         transpose = 0, "solve A^T x = b"
 
-    # === Begin MUMPS snippet: ICNTL(10) page 76 from userguide_5.8.1.txt:4250-4283 ===
+    # === Begin MUMPS snippet: ICNTL(10) page 76 from userguide_5.8.1.txt:4250-4284 ===
     # ICNTL(10) applies the iterative refinement to the computed solution (see Subsection 5.8).
     #       Phase: accessed by the host during the solve phase.
     #       Possible variables/arrays involved: NRHS
@@ -514,6 +541,7 @@ class ICNTL(ParamArray):
     #        2. or when the convergence rate is too slow (ω1 + ω2 does not decrease by at least a factor of 2)
     #        3. or when exactly ICNTL(10) steps have been performed.
     #      In the first two cases the number of iterative refinement steps (INFOG(15)) may be lower than
+    #      ICNTL(10).
     # === End MUMPS snippet ===
 
     @param(index=10, page=76)
@@ -580,7 +608,7 @@ class ICNTL(ParamArray):
         all_stats = 1, "compute all statistics (expensive)"
         main_stats = 2, "compute main statistics (not the most expensive ones)"
 
-    # === Begin MUMPS snippet: ICNTL(12) page 77 from userguide_5.8.1.txt:4316-4334 ===
+    # === Begin MUMPS snippet: ICNTL(12) page 77 from userguide_5.8.1.txt:4316-4347 ===
     # ICNTL(12) defines an ordering strategy for symmetric matrices (SYM = 2) (see [25] for more details)
     # and is used, in conjunction with ICNTL(6), to add constraints to the ordering algorithm (ICNTL(7)
     # option).
@@ -596,6 +624,19 @@ class ICNTL(ParamArray):
     #      (SYM=1), or the matrix is in elemental format (ICNTL(5)=1), or the matrix is initially distributed
     #      (ICNTL(18)=1,2,3) or the ordering is provided by the user (ICNTL(7)=1), or the Schur option
     #      (ICNTL(19) ̸= 0) is required, or the analysis is performed by blocks (ICNTL(15) ̸= 0),
+    #      ICNTL(12) is treated as 1 (nothing done).
+    #      Related parameters: ICNTL(6), ICNTL(7)
+    #      Remarks: If MUMPS detects some incompatibility between control parameters then it uses the
+    #      following rules to automatically reset the control parameters. Firstly ICNTL(12) has a lower
+    #      priority than ICNTL(7) so that if ICNTL(12) = 3 and the ordering required is not AMF then
+    #      ICNTL(12) is internally treated as 2. Secondly ICNTL(12) has a higher priority than ICNTL(6)
+    #      and ICNTL(8). Thus if ICNTL(12) = 2 and ICNTL(6) was not active (ICNTL(6)=0) then
+    #      ICNTL(6) is treated as 5 if numerical values are provided, or as 1 otherwise. Furthermore, if
+    #      ICNTL(12) = 3 then ICNTL(6) is treated as 5 and ICNTL(8) is treated as -2 (scaling computed
+    #      during analysis).
+    #      On output from the analysis phase, INFOG(24) holds the value of ICNTL(12) that was
+    #      effectively used. Note that INFOG(7) and INFOG(23) hold the values of ICNTL(7) and
+    #      ICNTL(6) (respectively) that were effectively used.
     # === End MUMPS snippet ===
 
     @param(index=12, page=77)
@@ -668,29 +709,17 @@ class ICNTL(ParamArray):
         - < -1: Treated as 0.
         """
 
-    # === Begin MUMPS snippet: ICNTL(14) page 83 from userguide_5.8.1.txt:4601-4619 ===
-    # ICNTL(23). The relaxation ICNTL(14) is first applied to the internal integer workarray IS and to
-    # communication and I/O buffers; the remaining available space is then shared between the main (and
-    # often most critical) real/complex internal workarray S holding the factors, the stack of contribution
-    # blocks and dynamic workarrays that are used either to expand the S array or to store low-rank
-    # dynamic structures.
-    # Lower bounds for ICNTL(23), in case ICNTL(23) is provided only on the host:
-    #    – In case of full-rank factors only (ICNTL(35)=0 or 3), a lower bound for ICNTL(23) (if ICNTL(14),
-    #      has not been modified since the analysis) is given by INFOG(16) if the factorization is in-core
-    #      (ICNTL(22)=0), and by INFOG(26) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – In case of low-rank factors (ICNTL(35)=1 or 2) only (ICNTL(37)=0), a lower bound for ICNTL(23)
-    #      (if ICNTL(14), has not been modified since the analysis and ICNTL(38) is a good approximation
-    #      of the average compression rate of the factors) is given by INFOG(36) if the factorization is in-core
-    #      (ICNTL(22)=0), and by INFOG(38) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – In case of low-rank contribution blocks (CB) only (ICNTL(35)=0,3 and ICNTL(37)=1), a lower bound
-    #      for ICNTL(23) (if ICNTL(14), has not been modified since the analysis and ICNTL(39) is a good
-    #      approximation of the average compression rate of the CB) is given by INFOG(44) if the factorization is
-    #      in-core (ICNTL(22)=0), and by INFOG(46) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – In case of low-rank factors and contribution blocks (ICNTL(35)=1,2 and ICNTL(37)=1), a lower
-    #      bound for ICNTL(23) (if ICNTL(14), has not been modified since the analysis, and ICNTL(38) and
+    # === Begin MUMPS snippet: ICNTL(14) page 78 from userguide_5.8.1.txt:4376-4386 ===
+    # ICNTL(14) controls the percentage increase in the estimated working space, see Subsection 5.11.
+    #      Phase: accessed by the host both during the analysis and the factorization phases.
+    #      Default value: between 20 and 35 (which corresponds to at most 35 % increase) and depends on
+    #      the number of MPI processes. It is set to 5 % with SYM=1 and one MPI process.
+    #      Related parameters: ICNTL(23)
+    #      Remarks: When significant extra fill-in is caused by numerical pivoting, increasing ICNTL(14)
+    #      may help.
     # === End MUMPS snippet ===
 
-    @param(index=14, page=83)
+    @param(index=14, page=78)
     class mem_relaxation:
         """
         Memory relaxation used when allocating internal work arrays.
@@ -706,7 +735,7 @@ class ICNTL(ParamArray):
         `ICNTL(23)` based on INFO/INFOG values.
         """
 
-    # === Begin MUMPS snippet: ICNTL(15) page 79 from userguide_5.8.1.txt:4388-4412 ===
+    # === Begin MUMPS snippet: ICNTL(15) page 79 from userguide_5.8.1.txt:4388-4414 ===
     # ICNTL(15) exploits compression of the input matrix resulting from a block format, see Subsection 5.7.
     #      Phase: accessed by the host process during the analysis phase.
     #      Possible variables/arrays involved: NBLK, BLKPTR, BLKVAR
@@ -732,6 +761,8 @@ class ICNTL(ParamArray):
     #      result from an expansion of a pivot order on the compressed matrix, i.e., variables in a block should
     #      be consecutive in the pivot order.
     #      Incompatibility: With element entry format ICNTL(5)= 1, with Schur complement
+    #      ICNTL(19)̸= 0 and with permutation to a zero-free diagonal and related compressed/constrained
+    #      ordering for symmetric matrices (ICNTL(6)̸= 0, ICNTL(12)̸= 1).
     # === End MUMPS snippet ===
 
     @param(index=15, page=79)
@@ -1030,29 +1061,64 @@ class ICNTL(ParamArray):
         in_core = 0, "keep factors in memory (standard mode)"
         out_of_core = 1, "write factors to disk (OOC)"
 
-    # === Begin MUMPS snippet: ICNTL(23) page 83 from userguide_5.8.1.txt:4601-4619 ===
-    # ICNTL(23). The relaxation ICNTL(14) is first applied to the internal integer workarray IS and to
-    # communication and I/O buffers; the remaining available space is then shared between the main (and
-    # often most critical) real/complex internal workarray S holding the factors, the stack of contribution
-    # blocks and dynamic workarrays that are used either to expand the S array or to store low-rank
-    # dynamic structures.
-    # Lower bounds for ICNTL(23), in case ICNTL(23) is provided only on the host:
-    #    – In case of full-rank factors only (ICNTL(35)=0 or 3), a lower bound for ICNTL(23) (if ICNTL(14),
-    #      has not been modified since the analysis) is given by INFOG(16) if the factorization is in-core
-    #      (ICNTL(22)=0), and by INFOG(26) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – In case of low-rank factors (ICNTL(35)=1 or 2) only (ICNTL(37)=0), a lower bound for ICNTL(23)
-    #      (if ICNTL(14), has not been modified since the analysis and ICNTL(38) is a good approximation
-    #      of the average compression rate of the factors) is given by INFOG(36) if the factorization is in-core
-    #      (ICNTL(22)=0), and by INFOG(38) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – In case of low-rank contribution blocks (CB) only (ICNTL(35)=0,3 and ICNTL(37)=1), a lower bound
-    #      for ICNTL(23) (if ICNTL(14), has not been modified since the analysis and ICNTL(39) is a good
-    #      approximation of the average compression rate of the CB) is given by INFOG(44) if the factorization is
-    #      in-core (ICNTL(22)=0), and by INFOG(46) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – In case of low-rank factors and contribution blocks (ICNTL(35)=1,2 and ICNTL(37)=1), a lower
-    #      bound for ICNTL(23) (if ICNTL(14), has not been modified since the analysis, and ICNTL(38) and
+    # === Begin MUMPS snippet: ICNTL(23) page 82 from userguide_5.8.1.txt:4585-4642 ===
+    # ICNTL(23) corresponds to the maximum size of the working memory in MegaBytes that MUMPS can
+    # allocate per working process, see Subsection 5.11 for more details.
+    #      Phase: accessed by all processes at the beginning of the factorization phase. If the value is greater
+    #      than 0 only on the host, then the value on the host is used for all processes, otherwise ICNTL(23)
+    #      is interpreted locally on each MPI process.
+    #      Possible values :
+    #        0 : each processor will allocate workspace based on the estimates computed during the analysis
+    #      >0 : maximum size of the working memory in MegaBytes per working process to be allocated
+    #      Default value: 0
+    #      Related parameters: ICNTL(14), ICNTL(38), ICNTL(39)
+    #      Remarks: If ICNTL(23) is greater than 0 then MUMPS automatically computes the size of
+    #      the internal workarrays such that the storage for all MUMPS internal data does not exceed
+    #      ICNTL(23). The relaxation ICNTL(14) is first applied to the internal integer workarray IS and to
+    #      communication and I/O buffers; the remaining available space is then shared between the main (and
+    #      often most critical) real/complex internal workarray S holding the factors, the stack of contribution
+    #      blocks and dynamic workarrays that are used either to expand the S array or to store low-rank
+    #      dynamic structures.
+    #      Lower bounds for ICNTL(23), in case ICNTL(23) is provided only on the host:
+    #         – In case of full-rank factors only (ICNTL(35)=0 or 3), a lower bound for ICNTL(23) (if ICNTL(14),
+    #           has not been modified since the analysis) is given by INFOG(16) if the factorization is in-core
+    #           (ICNTL(22)=0), and by INFOG(26) if the factorization is out-of-core (ICNTL(22)=1).
+    #         – In case of low-rank factors (ICNTL(35)=1 or 2) only (ICNTL(37)=0), a lower bound for ICNTL(23)
+    #           (if ICNTL(14), has not been modified since the analysis and ICNTL(38) is a good approximation
+    #           of the average compression rate of the factors) is given by INFOG(36) if the factorization is in-core
+    #           (ICNTL(22)=0), and by INFOG(38) if the factorization is out-of-core (ICNTL(22)=1).
+    #         – In case of low-rank contribution blocks (CB) only (ICNTL(35)=0,3 and ICNTL(37)=1), a lower bound
+    #           for ICNTL(23) (if ICNTL(14), has not been modified since the analysis and ICNTL(39) is a good
+    #           approximation of the average compression rate of the CB) is given by INFOG(44) if the factorization is
+    #           in-core (ICNTL(22)=0), and by INFOG(46) if the factorization is out-of-core (ICNTL(22)=1).
+    #         – In case of low-rank factors and contribution blocks (ICNTL(35)=1,2 and ICNTL(37)=1), a lower
+    #           bound for ICNTL(23) (if ICNTL(14), has not been modified since the analysis, and ICNTL(38) and
+    #           ICNTL(39) are good approximations of the average compression rate of respectively the factors and the
+    #           CB) is given by INFOG(40) if the factorization is in-core (ICNTL(22)=0), and by INFOG(42) if the
+    #           factorization is out-of-core (ICNTL(22)=1).
+    #      Lower bounds for ICNTL(23), in case ICNTL(23) is provided locally to each MPI process:
+    #         – Full-rank factors only (ICNTL(35)=0 or 3) ⇒ INFO(15) if the factorization is in-core
+    #           (ICNTL(22)=0), INFO(17) if the factorization is out-of-core (ICNTL(22)=1).
+    #         – Low-rank factors (ICNTL(35)=1 or 2) only (ICNTL(37)=0) ⇒ INFO(30) if the factorization is
+    #           in-core (ICNTL(22)=0), INFO(31) if the factorization is out-of-core (ICNTL(22)=1).
+    #         – Low-rank factors and contribution blocks (ICNTL(35)=1,2 and ICNTL(37)=1) ⇒ is given by
+    #           INFO(34) if the factorization is in-core (ICNTL(22)=0), INFO(35) if the factorization is out-of-
+    #           core (ICNTL(22)=1).
+    #      The above lower bounds include memory for the real/complex internal workarray S holding the
+    #      factors and stack of contribution blocks. In case WK USER is provided, the above quantities should
+    #      be diminished by the estimated memory for S/WK USER. This estimated memory can be obtained
+    #      from INFO(8), INFO(9), or INFO(20) (depending on MUMPS settings) by taking their absolute
+    #      value, if negative, or by dividing them by 106 , if positive. See also the paragraph Recommended
+    #      values of LWK USER below.
+    #      If ICNTL(23) is left to its default value 0 then MUMPS will allocate for the factorization phase
+    #      a workspace based on the estimates computed during the analysis if ICNTL(14) has not been
+    #      modified since analysis, or larger if ICNTL(14) was increased. Note that even with full-rank
+    #      factorization, these estimates are only accurate in the sequential version of MUMPS but they can
+    #      be inaccurate in the parallel case, especially for the out-of-core version. Therefore, in parallel, we
+    #      recommend to use ICNTL(23) and provide a value larger than the provided estimations.
     # === End MUMPS snippet ===
 
-    @param(index=23, page=83)
+    @param(index=23, page=82)
     class max_memory_mb:
         """
         Maximum allowed working memory per process in megabytes.
@@ -1128,42 +1194,39 @@ class ICNTL(ParamArray):
     class null_space_solution:
         "null space solution control during solve (0 normal; i compute i-th vector; -1 compute all)"
 
-    # === Begin MUMPS snippet: ICNTL(26) page 87 from userguide_5.8.1.txt:4861-4892 ===
-    # ICNTL(26)=1
-    # Possible values :
-    #   0: standard factorization not involving right-hand sides.
-    #   1: forward elimination (Equation (3)) of the right-hand side vectors is performed during
-    #      factorization (JOB= 2). The solve phase (JOB= 3) will then only involve backward
-    #      substitution (Equation (4)).
-    # Other values are treated as 0.
-    # Default value: 0 (standard factorization)
-    # Related parameters: ICNTL(31),ICNTL(26)
-    # Incompatibility: This option is incompatible with sparse right-hand sides (ICNTL(20)=1,2,3),
-    # with the solution of the transposed system (ICNTL(9) ̸= 1), with the computation of entries of
-    # the inverse (ICNTL(30)=1), and with BLR factorizations (ICNTL(35)=1,2,3). In such cases,
-    # error -43 is raised.
-    # Furthermore, iterative refinement (ICNTL(10)) and error analysis (ICNTL(11)) are disabled.
-    # Finally, the current implementation imposes that all right-hand sides are processed in one pass
-    # during the backward step. Therefore, the blocking size (ICNTL(27)) is ignored.
-    # Remarks: The right-hand sides must be dense to use this functionality: RHS, NRHS, and LRHS
-    # should be provided as described in Subsection 5.17.1. They should be provided at the beginning of
-    # the factorization phase (JOB= 2) rather than at the beginning of the solve phase (JOB= 3).
-    # For unsymmetric matrices, if the forward elimination is performed during factorization
-    # (ICNTL(32) = 1), the L factor (see ICNTL(31)) may be discarded to save space. In fact,
-    # the L factor will then always be discarded (even when ICNTL(31)=0) in the case of a full-rank
-    # factorization (ICNTL(35)=0) or BLR factorization with full-rank solve (ICNTL(35)=3). In the
-    # case of a BLR factorization with ICNTL(35)=1 or 2, only the L factor corresponding to full-rank
-    # frontal matrices are discarded in the current version.
-    # We advise to use this option only for a reasonably small number of dense right-hand side vectors
-    # because of the additional associated storage required when this option is activated and the number
-    # of right-hand sides is large compared to ICNTL(27).
+    # === Begin MUMPS snippet: ICNTL(26) page 84 from userguide_5.8.1.txt:4692-4722 ===
+    # ICNTL(26) drives the solution phase if a Schur complement matrix has been computed (ICNTL(19) ̸=
+    # 0), see Subsection 3.18 for details
+    #       Phase: accessed by the host during the solution phase. It will be accessed also during factorization
+    #       if the forward elimination is performed during factorization (ICNTL(32)=1)
+    #       Possible variables/arrays involved: REDRHS, LREDRHS
+    #       Possible values :
+    #        0 : standard solution phase on the internal problem; referring to the notations from
+    #            Subsection 3.18, only the system A1,1 x1 = b1 is solved and the entries of the right-hand
+    #            side corresponding to the Schur are explicitly set to 0 on output.
+    #        1 : condense/reduce the right-hand side on the Schur. Only a forward elimination is performed.
+    #            The solution corresponding to the ‘internal” (non-Schur) variables is returned together with
+    #            the reduced/condensed right-hand-side. The reduced right-hand side is made available on the
+    #            host in the pointer array REDRHS, that must be allocated by the user. Its leading dimension
+    #            LREDRHS must be provide, too.
+    #        2 : expand the Schur local solution on the complete solution variables. REDRHS is considered
+    #            to be the solution corresponding to the Schur variables. It must be allocated by the user as
+    #            well as its leading dimension LREDRHS must be provided. The backward substitution is then
+    #            performed with the given right-hand side to compute the solution associated with the ”internal”
+    #            variables. Note that the solution corresponding to the Schur variables is also made available
+    #            in the main solution vector/matrix.
+    #      Values different from 1 and 2 are treated as 0.
+    #      Default value: 0 (normal solution phase)
+    #      Incompatibility: If ICNTL(26) = 1 and 2 then error analysis and iterative refinement are disabled
+    #      (ICNTL(11) and ICNTL(10))
+    #      Related parameters: ICNTL(19), ICNTL(32)
     # === End MUMPS snippet ===
 
-    @param(index=26, page=87)
+    @param(index=26, page=84)
     class schur_solve_mode:
         "with Schur ON: 0 normal; 1 forward to build reduced RHS; 2 inject reduced solution"
 
-    # === Begin MUMPS snippet: ICNTL(27) page 85 from userguide_5.8.1.txt:4724-4737 ===
+    # === Begin MUMPS snippet: ICNTL(27) page 85 from userguide_5.8.1.txt:4724-4739 ===
     # ICNTL(27) controls the blocking size for multiple right-hand sides.
     #      Phase: accessed by the host during the solution phase
     #      Possible variables/arrays involved: id%NRHS
@@ -1178,6 +1241,8 @@ class ICNTL(ParamArray):
     #      Remarks: It influences both the memory usage (see INFOG(30) and INFOG(31)) and the
     #      solution time. Larger values of ICNTL(27) lead to larger memory requirements and a better
     #      performance (except if the larger memory requirements induce swapping effects). Tuning
+    #      ICNTL(27) is critical, especially when factors are on disk (ICNTL(22)=1 at the factorization
+    #      stage) because factors must be accessed once for each block of right-hand sides.
     # === End MUMPS snippet ===
 
     @param(index=27, page=85)
@@ -1196,22 +1261,36 @@ class ICNTL(ParamArray):
         - b > 0: blocksize = min(m, b)
         """
 
-    # === Begin MUMPS snippet: ICNTL(28) page 92 from userguide_5.8.1.txt:5124-5139 ===
-    # ICNTL(28)= 0, 1
-    # Possible values :
-    #   1: Symbolic factorization based on quotient graph, mixing right looking and left looking updates
-    #   2: Column count based symbolic factorization based on [29]
-    #   Other values are treated as 2.
-    #   Default value: 2
-    #   Related parameters: ICNTL(7), ICNTL(28)
-    #   Remarks: When symbolic factorization is not performed within the ordering (case of ordering
-    #   given, ICNTL(7)=1 or centralized Metis ordering, ICNTL(7)=5) then symbolic factorization
-    #   will be automatically performed. When SCOTCH is used, ICNTL(7)=3, a fast block
-    #   symbolic factorization (exploiting graph separator information) provided within SCOTCH library,
-    #   libesmumps.a, is used.
+    # === Begin MUMPS snippet: ICNTL(28) page 85 from userguide_5.8.1.txt:4741-4772 ===
+    # ICNTL(28) determines whether a sequential or parallel computation of the ordering is performed
+    # (see Subsection 3.2 and Subsection 5.6).
+    #      Phase: accessed by the host process during the analysis phase.
+    #      Possible values :
+    #        0: automatic choice.
+    #        1: sequential computation. In this case the ordering method is set by ICNTL(7) and the
+    #           ICNTL(29) parameter is meaningless (choice of the parallel ordering tool).
+    #        2: parallel computation. A parallel ordering and parallel symbolic factorization is requested by
+    #           the user. For that, one of the parallel ordering tools (or all) must be available, and the matrix
+    #           should not be too small. The ordering method is set by ICNTL(29) and the ICNTL(7)
+    #           parameter is meaningless.
+    #      Any other values will be treated as 0.
+    #      Default value: 0 (automatic choice)
+    #      Incompatibility: The parallel analysis is not available when the Schur complement feature is
+    #      requested (ICNTL(19)=1,2 or 3), when a maximum transversal is requested on the input matrix
+    #      (i.e., ICNTL(6)=1, 2, 3, 4, 5 or 6) or when the input matrix is an unassembled matrices
+    #      (ICNTL(5)=1). When the number of processes available for parallel analysis is equal to 1,
+    #      or when the initial matrix is extremely small, a sequential analysis is indeed performed, even if
+    #      ICNTL(28)=2 (no error is raised in that case).
+    #      Related parameters: ICNTL(7), ICNTL(29), INFOG(32)
+    #      Remarks: Performing the analysis in parallel (ICNTL(28)= 2) will enable saving both time and
+    #      memory. Note that then the quality of the ordering depends on the number of processors used.
+    #      The number of processors for parallel analysis may be smaller than the number of MPI processes
+    #      available for MUMPS, in order to satisfy internal constraints of parallel ordering tools. On output,
+    #      INFOG(32) is set to the type of analysis (sequential or parallel) that was effectively chosen
+    #      internally.
     # === End MUMPS snippet ===
 
-    @param(index=28, page=92)
+    @param(index=28, page=85)
     class analysis_mode:
         "analysis and ordering mode"
 
@@ -1219,22 +1298,25 @@ class ICNTL(ParamArray):
         sequential = 1, "sequential analysis (ordering via ICNTL(7))"
         parallel = 2, "parallel analysis (ordering via ICNTL(29))"
 
-    # === Begin MUMPS snippet: ICNTL(29) page 85 from userguide_5.8.1.txt:4747-4764 ===
-    #      ICNTL(29) parameter is meaningless (choice of the parallel ordering tool).
-    #   2: parallel computation. A parallel ordering and parallel symbolic factorization is requested by
-    #      the user. For that, one of the parallel ordering tools (or all) must be available, and the matrix
-    #      should not be too small. The ordering method is set by ICNTL(29) and the ICNTL(7)
-    #      parameter is meaningless.
-    # Any other values will be treated as 0.
-    # Default value: 0 (automatic choice)
-    # Incompatibility: The parallel analysis is not available when the Schur complement feature is
-    # requested (ICNTL(19)=1,2 or 3), when a maximum transversal is requested on the input matrix
-    # (i.e., ICNTL(6)=1, 2, 3, 4, 5 or 6) or when the input matrix is an unassembled matrices
-    # (ICNTL(5)=1). When the number of processes available for parallel analysis is equal to 1,
-    # or when the initial matrix is extremely small, a sequential analysis is indeed performed, even if
+    # === Begin MUMPS snippet: ICNTL(29) page 86 from userguide_5.8.1.txt:4774-4788 ===
+    # ICNTL(29) defines the parallel ordering tool (when ICNTL(28)=1) to be used to compute the fill-in
+    # reducing permutation. See Subsection 3.2 and Subsection 5.6.
+    #      Phase: accessed by host process only during the parallel analysis phase (ICNTL(28)=2).
+    #      Possible variables/arrays involved: SYM PERM
+    #      Possible values :
+    #        0: automatic choice.
+    #        1: PT-SCOTCH is used to reorder the input matrix, if available.
+    #        2: ParMetis is used to reorder the input matrix, if available.
+    #      Other values are treated as 0.
+    #      Default value: 0 (automatic choice)
+    #      Related parameters: ICNTL(28)
+    #      Remarks: On output, the pointer array SYM PERM provides access, on the host processor, to the
+    #      symmetric permutation that is effectively considered during the analysis phase, and INFOG(7)
+    #      to the ordering option that was effectively used. SYM PERM(i), (i=1, ... N) holds the position of
+    #      variable i in the pivot order, see Subsection 5.6.1 for a full description.
     # === End MUMPS snippet ===
 
-    @param(index=29, page=85)
+    @param(index=29, page=86)
     class parallel_ordering:
         "ordering tool in parallel analysis (0 auto -> PT-SCOTCH; 1 PT-SCOTCH; 2 ParMetis)"
 
@@ -1311,11 +1393,39 @@ class ICNTL(ParamArray):
     class param_31:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: ICNTL(32) page 87 from userguide_5.8.1.txt:4857-4860 ===
+    # === Begin MUMPS snippet: ICNTL(32) page 87 from userguide_5.8.1.txt:4857-4892 ===
     # ICNTL(32) performs the forward elimination of the right-hand sides (Equation (3)) during the
     # factorization (JOB= 2). (see Subsection 5.16).
     #      Phase: accessed by the host during the analysis phase.
     #      Possible variables/arrays involved: RHS, NRHS, LRHS, and possibly REDRHS, LREDRHS when
+    #      ICNTL(26)=1
+    #      Possible values :
+    #        0: standard factorization not involving right-hand sides.
+    #        1: forward elimination (Equation (3)) of the right-hand side vectors is performed during
+    #           factorization (JOB= 2). The solve phase (JOB= 3) will then only involve backward
+    #           substitution (Equation (4)).
+    #      Other values are treated as 0.
+    #      Default value: 0 (standard factorization)
+    #      Related parameters: ICNTL(31),ICNTL(26)
+    #      Incompatibility: This option is incompatible with sparse right-hand sides (ICNTL(20)=1,2,3),
+    #      with the solution of the transposed system (ICNTL(9) ̸= 1), with the computation of entries of
+    #      the inverse (ICNTL(30)=1), and with BLR factorizations (ICNTL(35)=1,2,3). In such cases,
+    #      error -43 is raised.
+    #      Furthermore, iterative refinement (ICNTL(10)) and error analysis (ICNTL(11)) are disabled.
+    #      Finally, the current implementation imposes that all right-hand sides are processed in one pass
+    #      during the backward step. Therefore, the blocking size (ICNTL(27)) is ignored.
+    #      Remarks: The right-hand sides must be dense to use this functionality: RHS, NRHS, and LRHS
+    #      should be provided as described in Subsection 5.17.1. They should be provided at the beginning of
+    #      the factorization phase (JOB= 2) rather than at the beginning of the solve phase (JOB= 3).
+    #      For unsymmetric matrices, if the forward elimination is performed during factorization
+    #      (ICNTL(32) = 1), the L factor (see ICNTL(31)) may be discarded to save space. In fact,
+    #      the L factor will then always be discarded (even when ICNTL(31)=0) in the case of a full-rank
+    #      factorization (ICNTL(35)=0) or BLR factorization with full-rank solve (ICNTL(35)=3). In the
+    #      case of a BLR factorization with ICNTL(35)=1 or 2, only the L factor corresponding to full-rank
+    #      frontal matrices are discarded in the current version.
+    #      We advise to use this option only for a reasonably small number of dense right-hand side vectors
+    #      because of the additional associated storage required when this option is activated and the number
+    #      of right-hand sides is large compared to ICNTL(27).
     # === End MUMPS snippet ===
 
     @param(index=32, page=87)
@@ -1433,7 +1543,7 @@ class ICNTL(ParamArray):
     class param_36:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: ICNTL(37) page 90 from userguide_5.8.1.txt:4988-4998 ===
+    # === Begin MUMPS snippet: ICNTL(37) page 90 from userguide_5.8.1.txt:4988-5000 ===
     # ICNTL(37) controls the BLR compression of the contribution blocks (see Subsection 5.19).
     #      Phase: accessed by the host during the factorization phase when ICNTL(35)=1, 2 or 3
     #      Possible values :
@@ -1445,6 +1555,8 @@ class ICNTL(ParamArray):
     #      Related parameters: ICNTL(35), CNTL(7), ICNTL(40)
     #      Remarks: This feature should be activated if memory consumption is a primary concern; note
     #      that it is likely to increase the factorization time. We recommend to combine this feature with
+    #      ICNTL(40)=1 since BLR contribution blocks will then also benefit from adaptive precision
+    #      representation for further storage reductions.
     # === End MUMPS snippet ===
 
     @param(index=37, page=90)
@@ -1470,33 +1582,23 @@ class ICNTL(ParamArray):
     class param_38:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: ICNTL(39) page 83 from userguide_5.8.1.txt:4620-4642 ===
-    #      ICNTL(39) are good approximations of the average compression rate of respectively the factors and the
-    #      CB) is given by INFOG(40) if the factorization is in-core (ICNTL(22)=0), and by INFOG(42) if the
-    #      factorization is out-of-core (ICNTL(22)=1).
-    # Lower bounds for ICNTL(23), in case ICNTL(23) is provided locally to each MPI process:
-    #    – Full-rank factors only (ICNTL(35)=0 or 3) ⇒ INFO(15) if the factorization is in-core
-    #      (ICNTL(22)=0), INFO(17) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – Low-rank factors (ICNTL(35)=1 or 2) only (ICNTL(37)=0) ⇒ INFO(30) if the factorization is
-    #      in-core (ICNTL(22)=0), INFO(31) if the factorization is out-of-core (ICNTL(22)=1).
-    #    – Low-rank factors and contribution blocks (ICNTL(35)=1,2 and ICNTL(37)=1) ⇒ is given by
-    #      INFO(34) if the factorization is in-core (ICNTL(22)=0), INFO(35) if the factorization is out-of-
-    #      core (ICNTL(22)=1).
-    # The above lower bounds include memory for the real/complex internal workarray S holding the
-    # factors and stack of contribution blocks. In case WK USER is provided, the above quantities should
-    # be diminished by the estimated memory for S/WK USER. This estimated memory can be obtained
-    # from INFO(8), INFO(9), or INFO(20) (depending on MUMPS settings) by taking their absolute
-    # value, if negative, or by dividing them by 106 , if positive. See also the paragraph Recommended
-    # values of LWK USER below.
-    # If ICNTL(23) is left to its default value 0 then MUMPS will allocate for the factorization phase
-    # a workspace based on the estimates computed during the analysis if ICNTL(14) has not been
-    # modified since analysis, or larger if ICNTL(14) was increased. Note that even with full-rank
-    # factorization, these estimates are only accurate in the sequential version of MUMPS but they can
-    # be inaccurate in the parallel case, especially for the out-of-core version. Therefore, in parallel, we
-    # recommend to use ICNTL(23) and provide a value larger than the provided estimations.
+    # === Begin MUMPS snippet: ICNTL(39) page 90 from userguide_5.8.1.txt:5015-5031 ===
+    # ICNTL(39) estimates compression rate of contribution blocks (see Subsection 5.19).
+    #      Phase: accessed by the host during the analysis and the factorization phases when ICNTL(35)=1,
+    #      2 or 3, and ICNTL(37)= 1
+    #      Possible values : between 0 and 1000 (1000 is no compression and 0 is full compression); other
+    #      values are treated as 0; ICNTL(39)/10 is a percentage representing the typical compression of the
+    #                                              compressed CB
+    #      CB in BLR fronts: ICNTL(39)/10 = uncompressed CB × 100.
+    #      Default value: 500 (when CB of BLR fronts are compressed, their size is 50% of their full-rank
+    #      size).
+    #      Related parameters: ICNTL(35), ICNTL(37)
+    #      Remarks: Influences statistics provided in INFO(32), INFO(33), INFO(34), INFO(35),
+    #      INFO(36), INFO(37), INFO(38), INFOG(40), INFOG(41), INFOG(42), INFOG(43)
+    #      INFOG(44) INFOG(45) INFOG(46) INFOG(47)
     # === End MUMPS snippet ===
 
-    @param(index=39, page=83)
+    @param(index=39, page=90)
     class param_39:
         "Placeholder parameter, not processed yet."
 
@@ -1529,7 +1631,7 @@ class ICNTL(ParamArray):
     class l0_omp:
         "Controls L0_OMP feature (analysis/factorization/solve activation); out-of-range treated as 0"
 
-    # === Begin MUMPS snippet: ICNTL(49) page 91 from userguide_5.8.1.txt:5060-5073 ===
+    # === Begin MUMPS snippet: ICNTL(49) page 91 from userguide_5.8.1.txt:5060-5078 ===
     # ICNTL(49) compact workarray id%S at the end of factorization phase (see Subsection 5.22).
     #      Phase: accessed by the host during factorization phase
     #      Possible values :
@@ -1544,6 +1646,8 @@ class ICNTL(ParamArray):
     #      Incompatibility: With the use of LWK USER / WK USER feature.
     #      Remarks: ICNTL(49)=1,2 might require intermediate memory allocation to reallocate id%S of
     #      minimal size. If the memory allocation fails, then a warning is returned and nothing is done. If
+    #      ICNTL(49)=1 and the memory constraint provided with ICNTL(23)> 0 would not be satisfied
+    #      then a warning is raised and nothing is done.
     # === End MUMPS snippet ===
 
     @param(index=49, page=91)
@@ -1587,9 +1691,21 @@ class ICNTL(ParamArray):
     class null_space_analysis:
         "null space prep/analysis (analysis: >0 prepare; factorization: 1 SVD, 2 QR if prepared)"
 
-    # === Begin MUMPS snippet: ICNTL(58) page 92 from userguide_5.8.1.txt:5122-5123 ===
+    # === Begin MUMPS snippet: ICNTL(58) page 92 from userguide_5.8.1.txt:5122-5139 ===
     # ICNTL(58) defines options for symbolic factorization
     #      Phase: accessed by the host during the analysis when centralized ordering is performed,
+    #      ICNTL(28)= 0, 1
+    #      Possible values :
+    #        1: Symbolic factorization based on quotient graph, mixing right looking and left looking updates
+    #        2: Column count based symbolic factorization based on [29]
+    #        Other values are treated as 2.
+    #        Default value: 2
+    #        Related parameters: ICNTL(7), ICNTL(28)
+    #        Remarks: When symbolic factorization is not performed within the ordering (case of ordering
+    #        given, ICNTL(7)=1 or centralized Metis ordering, ICNTL(7)=5) then symbolic factorization
+    #        will be automatically performed. When SCOTCH is used, ICNTL(7)=3, a fast block
+    #        symbolic factorization (exploiting graph separator information) provided within SCOTCH library,
+    #        libesmumps.a, is used.
     # === End MUMPS snippet ===
 
     @param(index=58, page=92)
@@ -1686,7 +1802,7 @@ class CNTL(ParamArray):
     class rr_thresholds:
         "thresholds for RR and null pivot detection (see docs)"
 
-    # === Begin MUMPS snippet: CNTL(4) page 94 from userguide_5.8.1.txt:5207-5225 ===
+    # === Begin MUMPS snippet: CNTL(4) page 94 from userguide_5.8.1.txt:5207-5226 ===
     # CNTL(4) determines the threshold for static pivoting. See Subsection 3.10
     #       Related parameters: CNTL(1), INFOG(25)
     #       Phase: accessed by the host, and must be set either before the factorization phase, or before the
@@ -1706,6 +1822,7 @@ class CNTL(ParamArray):
     #       Remarks: By static pivoting (as in [39]) we mean replacing small pivots whose elimination should
     #       be postponed because of partial threshold pivoting and would thus result in an increase of our
     #       estimations (memory and operations), by a small perturbation of the original matrix controlled by
+    #       CNTL(4). The number of modified pivots is returned in INFOG(25).
     # === End MUMPS snippet ===
 
     @param(index=4, page=94)
@@ -1791,13 +1908,25 @@ class INFO(RawArray):
     class param_2:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: INFO(3) page 98 from userguide_5.8.1.txt:5418-5423 ===
+    # === Begin MUMPS snippet: INFO(3) page 98 from userguide_5.8.1.txt:5418-5435 ===
     # INFO(3) - after analysis: Estimated size of the real/complex space needed on the processor to
     #    store the factors, assuming the factors are stored in full-rank format (ICNTL(35)=0 or 3 during
     #    factorization). If INFO(3) is negative, then its absolute value corresponds to millions of
     #    real/complex entries used to store the factor matrices. Assuming that the factors will be stored
     #    in full-rank format during the factorization (ICNTL(35)=0 or 3), a rough estimation of the size of
     #    the disk space in bytes of the files written by the concerned processor can be obtained by multiplying
+    #    INFO(3) (or its absolute value multiplied by 1 million when negative) by 4, 8, 8, or 16 for single
+    #    precision, double precision, single complex, and double complex arithmetics, respectively. See also
+    #    RINFO(5).
+    #    Note that, when all factors are discarded (ICNTL(31)=1), INFO(3) corresponds to the factors
+    #    storage if factors were not discarded (rather than 0). However, if only the L factor is discarded
+    #    (case of forward substitution during factorization, ICNTL(32)=1, or case of ICNTL(31)=2),
+    #    then INFO(3) corresponds to the factor storage excluding L.
+    #    The effective size of the real/complex space needed to store the factors will be returned in INFO(9)
+    #    (see below), but only after the factorization. Furthermore, after an out-of-core factorization
+    #    (ICNTL(22)=1), the size of the disk space for the files written by the local processor is returned
+    #    in RINFO(6). Finally, the total estimated size of the full-rank factors for all processors (sum of
+    #    the INFO(3) values over all processors) is returned in INFOG(3).
     # === End MUMPS snippet ===
 
     @param(index=3, page=98)
@@ -1938,10 +2067,11 @@ class INFO(RawArray):
     class param_16:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: INFO(17) page 99 from userguide_5.8.1.txt:5485-5487 ===
+    # === Begin MUMPS snippet: INFO(17) page 99 from userguide_5.8.1.txt:5485-5488 ===
     # INFO(17) - after analysis: estimated size in MegaBytes (millions of bytes) of all working space to
     #    run the numerical phases out-of-core (ICNTL(22)̸=0) with the default strategy. The maximum
     #    and sum over all processors are returned respectively in INFOG(26) and INFOG(27). See also
+    #    INFO(22) which provides the actual memory that was needed but only after factorization.
     # === End MUMPS snippet ===
 
     @param(index=17, page=99)
@@ -2042,10 +2172,12 @@ class INFO(RawArray):
     class param_26:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: INFO(27) page 100 from userguide_5.8.1.txt:5526-5528 ===
+    # === Begin MUMPS snippet: INFO(27) page 100 from userguide_5.8.1.txt:5526-5530 ===
     # INFO(27) - after factorization: effective number of entries in factor matrices assuming full-rank
     #    factorization has been performed. If negative, then the absolute value corresponds to millions of
     #    entries in the factors. Note that in case full-rank storage of factors (ICNTL(35)=0 or 3), we have
+    #    INFO(27)=INFO(9) in the unsymmetric case and INFO(27) ≤ INFO(9) in the symmetric case.
+    #    The sum of INFO(27) over all processors is available in INFOG(29).
     # === End MUMPS snippet ===
 
     @param(index=27, page=100)
@@ -2219,12 +2351,14 @@ class INFO(RawArray):
     class param_39:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: INFO(40) page 101 from userguide_5.8.1.txt:5592-5596 ===
-    # INFO(40) is the number of negative pivots among the null pivots/deficiency detected. Note that,
-    # for singular matrices, INFO(40) may vary from one run to another due to floating-point rounding
-    # effects. A pivot counted in INFO(12), the number of negative non-null pivots, will not be counted
-    # in INFO(40). See also INFOG(28) which provides the number of null pivots/deficiency over all
-    # processors and INFOG(50), which provides the number of negative null pivots over all processors.
+    # === Begin MUMPS snippet: INFO(40) page 101 from userguide_5.8.1.txt:5590-5596 ===
+    # INFO(40) - after factorization: can only be nonzero for real symmetric matrices, in case the null
+    #    pivot row detection (see ICNTL(24)) feature or rank-revealing (see ICNTL(56)) is activated.
+    #    INFO(40) is the number of negative pivots among the null pivots/deficiency detected. Note that,
+    #    for singular matrices, INFO(40) may vary from one run to another due to floating-point rounding
+    #    effects. A pivot counted in INFO(12), the number of negative non-null pivots, will not be counted
+    #    in INFO(40). See also INFOG(28) which provides the number of null pivots/deficiency over all
+    #    processors and INFOG(50), which provides the number of negative null pivots over all processors.
     # === End MUMPS snippet ===
 
     @param(index=40, page=101)
@@ -2282,14 +2416,20 @@ class RINFO(RawArray):
     class param_4:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: RINFO(5) page 97 from userguide_5.8.1.txt:5389-5399 ===
-    # RINFO(5) is computed for a full-rank factorization (ICNTL(35)=0 also for the factorization).
-    # If ICNTL(35)=1, 2 or 3 at analysis, then RINFO(5) is computed assuming a low-rank (in-
-    # core) storage of the factors of the BLR fronts during the factorization (ICNTL(35)=1 or 2 during
-    # factorization). In case ICNTL(35)=1, 2 or 3 at analysis and the factors are stored in full-rank
-    # format (ICNTL(35)=0 or 3 for the factorization), we refer the user to INFO(3) in order to obtain
-    # a rough estimate of the necessary disk space for the concerned processor.
-    #  The effective size in MegaBytes of the files written by the current processor will be returned in
+    # === Begin MUMPS snippet: RINFO(5) page 97 from userguide_5.8.1.txt:5385-5401 ===
+    # RINFO(5) - after analysis: if the user decides to perform an out-of-core factorization
+    #    (ICNTL(22)=1), then a rough estimation of the size of the disk space in MegaBytes of the
+    #    files written by the concerned processor is provided in RINFO(5). If the analysis is full-
+    #    rank (ICNTL(35)=0 for the analysis step), then the factorization is necessarily full-rank so that
+    #    RINFO(5) is computed for a full-rank factorization (ICNTL(35)=0 also for the factorization).
+    #    If ICNTL(35)=1, 2 or 3 at analysis, then RINFO(5) is computed assuming a low-rank (in-
+    #    core) storage of the factors of the BLR fronts during the factorization (ICNTL(35)=1 or 2 during
+    #    factorization). In case ICNTL(35)=1, 2 or 3 at analysis and the factors are stored in full-rank
+    #    format (ICNTL(35)=0 or 3 for the factorization), we refer the user to INFO(3) in order to obtain
+    #    a rough estimate of the necessary disk space for the concerned processor.
+    #     The effective size in MegaBytes of the files written by the current processor will be returned in
+    #     RINFO(6), but only after the factorization. The total estimated disk space (sum of the values of
+    #     RINFO(5) over all processors) is returned in RINFOG(15).
     # === End MUMPS snippet ===
 
     @param(index=5, page=97)
@@ -2444,14 +2584,19 @@ class RINFOG(RawArray):
     class param_14:
         "Placeholder parameter, not processed yet."
 
-    # === Begin MUMPS snippet: RINFOG(15) page 102 from userguide_5.8.1.txt:5634-5640 ===
-    # RINFOG(15) is computed for a full-rank factorization (ICNTL(35)=0 also for the factorization).
-    # If ICNTL(35)=1, 2 or 3 at analysis, then RINFOG(15) is computed assuming a low-rank (in-
-    # core) storage of the factors of the BLR fronts during the factorization (ICNTL(35)=2 during
-    # factorization). In case ICNTL(35)=1, 2 or 3 for the analysis and the factors will be stored in full-
-    # rank format (ICNTL(35)=0 or 3 for the factorization), we refer the user to INFOG(3) in order
-    # to obtain a rough estimate of the necessary disk space for all processors.
-    # The effective size in Megabytes of the files written by all processors will be returned in
+    # === Begin MUMPS snippet: RINFOG(15) page 102 from userguide_5.8.1.txt:5630-5641 ===
+    # RINFOG(15) - after analysis: if the user decides to perform an out-of-core factorization
+    #    (ICNTL(22)=1), then a rough estimation of the total size of the disk space in MegaBytes of
+    #    the files written by all processors is provided in RINFOG(15). If the analysis is full-rank
+    #    (ICNTL(35)=0 for the analysis step), then the factorization is necessarily full-rank so that
+    #    RINFOG(15) is computed for a full-rank factorization (ICNTL(35)=0 also for the factorization).
+    #    If ICNTL(35)=1, 2 or 3 at analysis, then RINFOG(15) is computed assuming a low-rank (in-
+    #    core) storage of the factors of the BLR fronts during the factorization (ICNTL(35)=2 during
+    #    factorization). In case ICNTL(35)=1, 2 or 3 for the analysis and the factors will be stored in full-
+    #    rank format (ICNTL(35)=0 or 3 for the factorization), we refer the user to INFOG(3) in order
+    #    to obtain a rough estimate of the necessary disk space for all processors.
+    #    The effective size in Megabytes of the files written by all processors will be returned in
+    #    RINFOG(16), but only after the factorization.
     # === End MUMPS snippet ===
 
     @param(index=15, page=102)

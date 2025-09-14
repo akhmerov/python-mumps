@@ -46,7 +46,7 @@ line-length = 88
 
 [tool.codespell]
 skip = ["*.lock"]
-ignore-words-list = "groth,coo"
+ignore-words-list = "arithmetics,groth,coo"
 
 [tool.pixi.project]
 channels = ["conda-forge"]

@@ -26,8 +26,14 @@ Extraction heuristics (robust to TXT/MD formatting)
 - For each candidate heading, the snippet spans from that heading line up to the
     next heading line, but never past the end of the array's section (clamped to
     the section boundary).
-- Bullet-summary lines (those starting with a bullet) are de-prioritized in
-    favor of full description blocks when both exist for the same (array, index).
+- Sequential matching heuristic with quality preference:
+        - Prefer full description blocks (non-bullet headings) over one-line bullet
+            summaries when both exist for the same (ARRAY, index).
+        - Among candidates, prefer the one with the longest span up to the next
+            heading, as a proxy for descriptive richness.
+        - Tie-breaker: earliest position in the document. This still prevents a
+            later incidental re-mention (like a cross-reference) from overriding the
+            true definition.
 
 Page numbers and cleaning
 - The Users' Guide TXT may contain page numbers or form feeds; the preprocessor
@@ -526,6 +532,22 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
     # Store whether the line is a bullet-summary (prefix contains '•') to de-prioritize it
     raw_heads: List[tuple[int, str, List[int], bool]] = []
     reserved_keys: set[tuple[str, int]] = set()
+    # Track accepted heading positions per array (used to compute per-array boundaries)
+    positions_by_array: dict[str, List[int]] = {
+        "ICNTL": [],
+        "CNTL": [],
+        "INFO": [],
+        "RINFO": [],
+        "RINFOG": [],
+    }
+
+    def _effective_indent(s: str) -> int:
+        k = 0
+        while k < len(s) and s[k] == " ":
+            k += 1
+        if re.match(r"^\s*[\u2022\-*]\s+", s):  # bullet '•' or '-' or '*'
+            return k + 1
+        return k
 
     # Helper to expand an idxtok like "7" or "52-55" into concrete indices and clamp within array logical bounds
     def _expand_indices(arr: str, idxtok: str) -> List[int]:
@@ -574,12 +596,20 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
         if not arr_ranges:
             # If section bounds were not detected, fall back to whole document
             arr_ranges = [(0, nlines)]
+        # Remember last accepted heading for this array to allow consecutive same-indent one-liners
+        last_acc_pos: Optional[int] = None
+        last_acc_indent: Optional[int] = None
         for i in range(nlines):
             if not _in_any_range(i, arr_ranges):
                 continue
             ln = lines[i]
             m = head_bol.match(ln)
             if not m:
+                continue
+            # Exclude false headings such as "ICNTL(26)=1" that appear within other sections;
+            # if an '=' follows immediately after the token, it's a reference, not a heading.
+            suffix = ln[m.end() :]
+            if re.match(r"^\s*=", suffix):
                 continue
             arr = m.group("arr").upper()
             if arr != arr_name:
@@ -591,10 +621,51 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
                     idxs.extend(_expand_indices(arr, mm.group("idxtok")))
             if not idxs:
                 continue
+
+            # Apply indentation heuristic unless this heading includes index 1 for the array.
+            # First entries (e.g., INFO(1), RINFO(1)) often start blocks where indentation may not
+            # strictly decrease; in that case we bypass the rule to avoid filtering out true starts.
+            cur_eff = _effective_indent(ln)
+            accepted_as: Optional[str] = None  # 'true' (indent-decrease) or 'sequence'
+            if 1 not in idxs:
+                lookback_ok = True
+                for j in range(i - 1, max(i - 6, -1), -1):
+                    prev = lines[j]
+                    if prev.strip() == "":
+                        continue
+                    if page_re.match(prev) or ff_re.match(prev):
+                        continue
+                    prev_eff = _effective_indent(prev)
+                    if not (cur_eff < prev_eff):
+                        lookback_ok = False
+                    break  # only compare to the nearest significant previous line
+                if not lookback_ok:
+                    # Sequence rule (INFO-like lists only): accept if this heading immediately follows the last
+                    # accepted heading for the same array, with the same indentation.
+                    if arr_name in {"INFO", "RINFO", "RINFOG"} and (
+                        last_acc_pos is not None
+                        and i == last_acc_pos + 1
+                        and last_acc_indent is not None
+                        and cur_eff == last_acc_indent
+                    ):
+                        accepted_as = "sequence"
+                    else:
+                        continue
+                else:
+                    accepted_as = "true"
+            else:
+                accepted_as = "true"  # first entries bypass indentation rule
             # Keep unique, sorted indices for determinism
             idxs = sorted(dict.fromkeys(idxs))
             is_bullet = "•" in (m.group("pre") or "")
             raw_heads.append((i, arr, idxs, is_bullet))
+            # Count boundaries: always count true headings; for sequence acceptance, only for INFO-like arrays
+            if accepted_as == "true" or (
+                accepted_as == "sequence" and arr_name in {"INFO", "RINFO", "RINFOG"}
+            ):
+                positions_by_array[arr_name].append(i)
+            last_acc_pos = i
+            last_acc_indent = cur_eff
             # If the heading line declares these as reserved/not used, remember to drop their snippets
             if reserved_re.search(ln):
                 for k in idxs:
@@ -610,22 +681,52 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
         for idx in idxs:
             candidates_by_key.setdefault((arr, idx), []).append((pos, is_bullet))
 
-    # Compute next DISTINCT start position across all candidate positions
-    all_positions = sorted({pos for pos, _, _, _ in raw_heads})
-    next_pos_map: dict[int, int] = {}
-    for j, p in enumerate(all_positions):
-        next_pos_map[p] = all_positions[j + 1] if j + 1 < len(all_positions) else nlines
+    # Prepare accepted headings by array with their indices to compute robust spans
+    # We skip same-index re-mentions when advancing to the next boundary.
+    accepted_heads_by_arr: dict[str, List[tuple[int, List[int]]]] = {
+        k: [] for k in positions_by_array.keys()
+    }
+    for pos, arr, idxs, _is_bullet in raw_heads:
+        accepted_heads_by_arr[arr].append((pos, idxs))
+    for arr in accepted_heads_by_arr:
+        accepted_heads_by_arr[arr].sort(key=lambda t: t[0])
 
-    # Select best position per key: prefer non-bullet; tie-breaker = longest span
+    def _next_end_pos(arr: str, idx: int, pos: int) -> int:
+        # find the next accepted heading for this array that introduces a different index than current
+        lst = accepted_heads_by_arr.get(arr, [])
+        for p2, idxs2 in lst:
+            if p2 <= pos:
+                continue
+            # If the next heading mentions indices other than the current idx, we stop there
+            # (e.g., INFO(13) -> INFO(14)). If it only re-mentions the same idx (e.g., ICNTL(6)=...), skip it.
+            if any(j != idx for j in idxs2):
+                return p2
+        return nlines
+
+    # Select best position per key: prefer non-bullet headings (full blocks) and
+    # longer spans over one-liner bullet summaries; tie-breaker: earliest position.
     selected: List[tuple[int, str, int]] = []
     for (arr, idx), cand_list in candidates_by_key.items():
-        # sort candidates: non-bullet first, then by decreasing span
-        def span_of(p: int) -> int:
-            return next_pos_map.get(p, nlines) - p
 
-        cand_list_sorted = sorted(cand_list, key=lambda t: (t[1], -span_of(t[0])))
-        best_pos = cand_list_sorted[0][0]
-        selected.append((best_pos, arr, idx))
+        def span_of(p: int, _arr: str = arr, _idx: int = idx) -> int:
+            return _next_end_pos(_arr, _idx, p) - p
+
+        # If any non-bullet candidates exist for this key, ignore bullet ones.
+        any_non_bullet = any(not is_b for (_p, is_b) in cand_list)
+        filtered = (
+            [(p, is_b) for (p, is_b) in cand_list if not is_b]
+            if any_non_bullet
+            else list(cand_list)
+        )
+
+        # Among remaining candidates, prefer longer spans; tie-breaker: earliest position.
+        filtered.sort(key=lambda t: (-span_of(t[0]), t[0]))
+
+        # Additional guard: if the top candidate has a tiny span (likely a summary) and a longer one
+        # exists, pick the longer one.
+        if filtered:
+            best_pos = filtered[0][0]
+            selected.append((best_pos, arr, idx))
 
     # Sort selected by position to compute snippet boundaries
     selected.sort(key=lambda t: t[0])
@@ -671,7 +772,7 @@ def extract_param_chunks() -> tuple[List[ParamChunk], set[tuple[str, int]]]:
     # Build chunks
     chunks: List[ParamChunk] = []
     for pos, arr, idx in selected:
-        end_pos = next_pos_map.get(pos, nlines)
+        end_pos = _next_end_pos(arr, idx, pos)
         # Clamp to end of the array's section range containing this position
         arr_ranges = ranges_by_array.get(arr, []) or [(0, nlines)]
         for a, b in arr_ranges:
@@ -1164,7 +1265,6 @@ def update_enums_inline() -> None:
                         f"{indent}@param(index={index}{page_kw})\n",
                         f"{indent}class param_{index}:\n",
                         f'{indent}    "Minimal placeholder; update tokens and docs as needed."\n',
-                        f"{indent}    # NOTE: INFO/RINFOG are raw arrays; tokens typically not defined.\n",
                         "\n",
                     ]
                     for ln in reversed([x for x in placeholder if x != ""]):
