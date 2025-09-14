@@ -2192,6 +2192,304 @@ class CNTL(ParamArray):
 # INFO members
 # ------------
 
+# === Begin MUMPS snippet: SECTION(8) page 106 from userguide_5.8.1.txt:5842-6159 ===
+# 8     Error and warning diagnostics
+# MUMPS uses the following mechanism to process errors that may occur during the parallel execution of
+# the code. If, during a call to MUMPS, an error occurs on a processor, this processor informs all the other
+# processors before they return from the call. In parts of the code where messages are sent asynchronously
+# (for example the factorization and solve phases), the processor on which the error occurs sends a message
+# to the other processors with a specific error tag. On the other hand, if the error occurs in a subroutine that
+# does not use asynchronous communication, the processor propagates the error to the other processors.
+#     On successful completion, a call to MUMPS will exit with the parameter mumps par%INFOG(1) set
+# to zero. A negative value for mumps par%INFOG(1) indicates that an error has been detected on one
+# of the processors. For example, if processor s returns with INFO(1) = -8 and INFO(2)=1000, then
+# processor s ran out of integer workspace during the factorization and the size of the workspace should be
+# increased by 1000 at least. The other processors are informed about this error and return with INFO(1)
+# = -1 (i.e., an error occurred on another processor) and INFO(2)=s (i.e., the error occurred on processor
+# s). If several processors raised an error, those processors do not overwrite INFO(1), i.e., only processors
+# that did not produce an error will set INFO(1) to -1 and INFO(2) to the rank of the processor having
+# the most negative error code.
+#     The behaviour is slightly different for the global information parameters INFOG(1) and INFOG(2):
+# in the previous example, all processors would return with INFOG(1) = -8 and INFOG(2)=1000.
+#     The possible error codes returned in INFO(1) (and INFOG(1)) have the following meaning:
+# -1 An error occurred on processor INFO(2).
+#                                    P         P
+# -2 NNZ/NZ, NNZ loc/NZ P    loc or    NNZ loc/ NZ loc are out of range.
+#                                      P                                                  INFO(2)=NNZ/NZ,
+#     NNZ loc/NZ loc or        NNZ loc/ NZ loc.
+# -3 MUMPS was called with an invalid value for JOB. This may happen if the analysis (JOB= 1) was not
+#     performed (or failed) before the factorization (JOB= 2), or the factorization was not performed (or
+#     failed) before the solve (JOB= 3), or the initialization phase (JOB= –1) was performed a second
+#     time on an instance not freed (JOB= –2). See description of JOB in Section 4 for other cases of
+#     error or incompatibilities. This error also occurs if JOB does not contain the same value on all
+#     processes on entry to MUMPS. INFO(2) is then set to the local value of JOB.
+# -4 Error in user-provided permutation array PERM IN at position INFO(2). This error may only occur
+#     on the host.
+# -5 Problem of real workspace allocation of size INFO(2) during analysis. The unit for INFO(2)
+#     is the number of real values (single precision for SMUMPS/CMUMPS, double precision for
+#     DMUMPS/ZMUMPS), in the Fortran “ALLOCATE” statement that did not succeed. If INFO(2)
+#     is negative, then its absolute value should be multiplied by 1 million.
+# -6 Matrix is singular in structure. INFO(2) holds the structural rank.
+# -7 Problem of integer workspace allocation of size INFO(2) during analysis. The unit for INFO(2) is
+#     the number of integer values that MUMPS tried to allocate in the Fortran ALLOCATE statement that
+#     did not succeed. If INFO(2) is negative, then its absolute value should be multiplied by 1 million.
+# -8 Main internal integer workarray IS too small for factorization. This may happen, for example, if
+#     numerical pivoting leads to significantly more fill-in than was predicted by the analysis. The user
+#     should increase the value of ICNTL(14) before calling the factorization again (JOB= 2).
+# -9 The main internal real/complex workarray S is too small. If INFO(2) is positive, then the number
+#     of entries that are missing in S at the moment when the error is raised is available in INFO(2).
+#     If INFO(2) is negative, then its absolute value should be multiplied by 1 million. If an error –9
+#     occurs, the user should increase the value of ICNTL(14) before calling the factorization (JOB=
+#     2) again, except if LWK USER is provided LWK USER should be increased.
+# -10 Numerically singular matrix, or zero pivot encountered. INFO(2) holds the number of eliminated
+#     pivots. This error may occur if the matrix is numerically singular, or if the matrix is non-singular
+#     but numerical pivoting is necessary to factorize the matrix and has been switched off (SYM=1 or
+#     CNTL(1)=0).
+# -11 Internal real/complex workarray S or LWK USER too small for solution. If INFO(2) is positive,
+#     then the number of entries that are missing in S/LWK USER at the moment when the error is raised
+#     is available in INFO(2). If the numerical phases are out-of-core and LWK USER is provided for
+#     the solution phase and is smaller than the value provided for the factorization, it should be increased
+#     by at least INFO(2). In other cases, please contact us.
+# -12 Internal real/complex workarray S too small for iterative refinement. Please contact us.
+# -13 Problem of workspace allocation of size INFO(2) during the factorization or solve steps. The size
+#     that the package tried to allocate with a Fortran ALLOCATE statement is available in INFO(2).
+#     If INFO(2) is negative, then the size that the package requested is obtained by multiplying the
+#     absolute value of INFO(2) by 1 million. In general, the unit for INFO(2) is the number of scalar
+#     entries of the type of the input matrix (real, complex, single or double precision).
+# -14 Internal integer workarray IS too small for solution. See error INFO(1) = -8.
+# -15 Integer workarray IS too small for iterative refinement and/or error analysis. See error INFO(1) =
+#     -8.
+# -16 N is out of range. INFO(2)=N.
+# -17 The internal send buffer that was allocated dynamically by MUMPS on the processor is too small.
+#     The user should increase the value of ICNTL(14) before calling MUMPS again.
+# -18 The blocking size for multiple RHS (ICNTL(27)) is too large and may lead to an integer overflow.
+#     This error may only occurs for very large matrices with large values of ICNTL(27) (e.g., several
+#     thousands). INFO(2) provides an estimate of the maximum value of ICNTL(27) that should be
+#     used.
+# -19 The maximum allowed size of working memory ICNTL(23) is too small to run the factorization
+#     phase and should be increased. If INFO(2) is positive, then the size in terms of the number
+#     of entries (real/complex) that are missing at the moment when the error is raised is available in
+#     INFO(2). If INFO(2) is negative, then its absolute value should be multiplied by 1 million.
+# -20 The internal reception buffer that was allocated dynamically by MUMPS is too small. Normally, this
+#     error is raised on the sender side when detecting that the message to be sent is too large for the
+#     reception buffer on the receiver. INFO(2) holds the minimum size of the reception buffer required
+#     (in bytes). The user should increase the value of ICNTL(14) before calling MUMPS again.
+# -21 Value of PAR=0 is not allowed because only one processor is available; Running MUMPS in host-
+#     node mode (the host is not a slave processor itself) requires at least two processors. The user should
+#     either set PAR to 1 or increase the number of processors.
+# -22 A pointer array is provided by the user that is either
+#          • not associated, or
+#          • has insufficient size, or
+#          • is associated and should not be associated (for example, RHS on non-host processors).
+#       INFO(2) points to the incorrect pointer array in the table below:
+#                                  INFO(2)                  array
+#                                     1                IRN or ELTPTR
+#                                     2                JCN or ELTVAR
+#                                     3                   PERM IN
+#                                     4                  A or A ELT
+#                                     5                   ROWSCA
+#                                     6                   COLSCA
+#                                     7                     RHS
+#                                     8               LISTVAR SCHUR
+#                                     9                    SCHUR
+#                                     10                RHS SPARSE
+#                                     11               IRHS SPARSE
+#                                     12                 IRHS PTR
+#                                     13                 ISOL loc
+#                                     14                  SOL loc
+#                                     15                  REDRHS
+#                                     16         IRN loc, JCN loc or A loc
+#                                     17                 IRHS loc
+#                                     18                  RHS loc
+# -23 MPI was not initialized by the user prior to a call to MUMPS with JOB= –1.
+# -24 NELT is out of range. INFO(2)=NELT.
+# -25 A problem has occurred in the initialization of the BLACS. This may be because you are using a
+#     vendor’s BLACS. Try using a BLACS version from netlib instead.
+# -26 LRHS is out of range. INFO(2)=LRHS.
+# -27 NZ RHS and IRHS PTR(NRHS+1) do not match. INFO(2) = IRHS PTR(NRHS+1).
+# -28 IRHS PTR(1) is not equal to 1. INFO(2) = IRHS PTR(1).
+# -29 LSOL loc is too small. This error may occur in case a distributed solution has been
+#     requested. When ICNTL(21)=1, LSOL loc should be greater or equal to INFO(23).
+#     INFO(2)=LSOL loc.
+# -30 SCHUR LLD is out of range. INFO(2) = SCHUR LLD.
+# -31 A 2D block cyclic symmetric (SYM=1 or 2) Schur complement is required with the option
+#     ICNTL(19)=3, but the user has provided a process grid that does not satisfy the constraint
+#     MBLOCK=NBLOCK. INFO(2)=MBLOCK-NBLOCK.
+# -32 Incompatible values of NRHS and ICNTL(25). Either ICNTL(25) was set to -1 and NRHS is
+#     different from INFOG(28); or ICNTL(25) was set to i, 1 ≤ i ≤ INFOG(28) and NRHS is
+#     different from 1. Value of NRHS is stored in INFO(2).
+# -33 ICNTL(26) was asked for during solve phase (or during the factorization – see ICNTL(32))
+#     but the Schur complement was not asked for at the analysis phase (ICNTL(19)).
+#     INFO(2)=ICNTL(26).
+# -34 LREDRHS is out of range. INFO(2)=LREDRHS.
+# -35 This error is raised when the expansion phase of the Schur feature is called (ICNTL(26)=2) but
+#     reduction phase (ICNTL(26)=1) was not called before. This error also occurs in case the reduction
+#     phase (ICNTL(26) = 1) is asked for at the solution phase (JOB= 3) but the forward elimination
+#     was already performed during the factorization phase (JOB= 2 and ICNTL(32)=1). INFO(2)
+#     contains the value of ICNTL(26).
+# -36 Incompatible values of ICNTL(25) and INFOG(28). The value of ICNTL(25) is stored in
+#     INFO(2).
+# -37 Value of ICNTL(25) incompatible with some other parameter. If ICNTL(25) is incompatible
+#     with ICNTL(xx), the index xx is stored in INFO(2).
+# -38 Parallel analysis was set (i.e., ICNTL(28)=2) but PT-SCOTCH or ParMetis were not provided.
+# -39 Incompatible values for ICNTL(28) and ICNTL(5) and/or ICNTL(19) and/or ICNTL(6).
+#     Parallel analysis is not possible in the cases where the matrix is unassembled and/or a Schur
+#     complement is requested and/or a maximum transversal is requested on the matrix.
+# -40 The matrix was indicated to be positive definite (SYM=1) by the user but a negative or null pivot
+#     was encountered during the processing of the root by ScaLAPACK. SYM=2 should be used.
+# -41 Incompatible value of LWK USER between factorization and solution phases. This error may only
+#     occur when the factorization is in-core (ICNTL(22)=1), in which case both the contents of
+#     WK USER and LWK USER should be passed unchanged between the factorization (JOB= 2) and
+#     solution (JOB= 3) phases.
+# -42 ICNTL(32) was set to 1 (forward during factorization), but the value of NRHS on the host
+#     processor is incorrect: either the value of NRHS provided at analysis is negative or zero, or the
+#     value provided at factorization or solve is different from the value provided at analysis. INFO(2)
+#     holds the value of id%NRHS that was provided at analysis.
+# -43 Incompatible values of ICNTL(32) and ICNTL(xx). The index xx is stored in INFO(2).
+# -44 The solve phase (JOB= 3) cannot be performed because the factors or part of the factors are not
+#     available. INFO(2) contains the value of ICNTL(31).
+# -45 NRHS ≤ 0. INFO(2) contains the value of NRHS.
+# -46 NZ RHS ≤ 0. This is currently not allowed with ICNTL(26)=1 and in case entries of A−1 are
+#     requested (ICNTL(30)=1). INFO(2) contains the value of NZ RHS.
+# -47 Entries of A−1 were requested during the solve phase (JOB= 3, ICNTL(30)=1) but the constraint
+#     NRHS=N is not respected. The value of NRHS is provided in INFO(2).
+# -48 A−1 Incompatible values of ICNTL(30) and ICNTL(xx). xx is stored in INFO(2).
+# -49 SIZE SCHUR has an incorrect value: SIZE SCHUR < 0 or SIZE SCHUR ≥N, or SIZE SCHUR
+#     was modified on the host since the analysis phase. The value of SIZE SCHUR is provided in
+#     INFO(2).
+# -50 An error occurred while computing the fill-reducing ordering during the analysis phase. This
+#     commonly happens when an (external) ordering tool returns an error code or a wrong result.
+# -51 An external ordering (Metis/ParMetis, SCOTCH/PT-SCOTCH, PORD), with 32-bit default
+#     integers, is invoked to processing a graph of size larger than 231 − 1. INFO(2) holds the size
+#     required to store the graph as a number of integer values; it is negative and its absolute value should
+#     be multiplied by 1 million.
+# -52 When default Fortran integers are 64 bit (e.g. Fortran compiler flag -i8 -fdefault-integer-8 or
+#     something equivalent depending on your compiler) then external ordering libraries (Metis/ParMetis,
+#     SCOTCH/PT-SCOTCH, PORD) should also have 64-bit default integers. INFO(2) = 1, 2, 3
+#     means that respectively Metis/ParMetis, SCOTCH/PT-SCOTCH or PORD were invoked and were
+#     not generated with 64-bit default integers.
+# -53 Internal error that could be due to inconsistent input data between two consecutive calls.
+# -54 The analysis phase (JOB= 1) was called with ICNTL(35)=0 but the factorization phase was
+#     called with ICNTL(35)=1, 2 or 3. In order to perform the factorization with BLR compression,
+#     please perform the analysis phase again using ICNTL(35)=1, 2 or 3 (see the documentation of
+#     ICNTL(35)).
+# -55 During a call to MUMPS including the solve phase with distributed right-hand side, either LRHS loc
+#     was detected to be smaller than Nloc RHS and INFO(2)=LRHS loc, or Nloc RHS was not
+#     equal to zero on the non working host (PAR=0) and INFO(2)=–Nloc RHS.
+# -56 During a call to MUMPS including the solve phase with distributed right-hand side and distributed
+#     solution, RHS loc and SOL loc point to the same workarray but LRHS loc < LSOL loc.
+#     INFO(2)=LRHS loc.
+# -57 During     a     call    to   MUMPS      analysis      phase    with      a     block format
+#     (ICNTL(15) ̸=            0),  an error in the interface provided by the user
+#     was detected.             INFO(2) holds additional information about the issue:
+#                     INFO(2) issue
+#                           1      NBLK is incorrect (or not compatible with BLKPTR size),
+#                                  or -ICNTL(15) is not compatible with N
+#                           2      BLKPTR is not provided or its content is incorrect
+#                           3      BLKVAR if provided should be of size N
+# -58 During a call to MUMPS with ICNTL(48)=1, an error occurred. INFO(2) holds additional
+#     information about the issue:
+#          • INFO(2)=0: ICNTL(48) was equal to 1 at analysis, but compilation is without OpenMP
+#            enabled. You should recompile MUMPS with OpenMP enabled.
+#          • INFO(2)=k, k > 0: ICNTL(48) is active but the number of threads available for the current
+#            phase (factorization or solve) is different from k, the number of threads available at analysis.
+#            Please call the current phase with the same number of threads as for the analysis.
+#          • INFO(2)=−100 − k, k > 0: ICNTL(48) is active but the number of threads effectively
+#            created during the main parallel region of the factorization that exploits multithreaded tree
+#            parallelism is different from the one obtained with omp get max threads(), and used
+#            during analysis to prepare the work. k is the number of threads effectively obtained in the
+#            parallel region, retrieved with omp get num threads(). Please check your OpenMP
+#            environment (OMP DYNAMIC, OMP THREAD LIMIT, . . . ) to see why k is different from
+#            the value returned by omp get num threads().
+# -69 The size of the default Fortran INTEGER datatype does not match the size of MUMPS INT.
+#     INFO(2) indicates the size of MUMPS INT, which depends on the -DINTSIZE64 during
+#     the build process. If INFO(2)=4, the Fortran sources were compiled with an option (e.g.
+#     -i8, or -fdefault-integer-8) to make all Fortran integers be 64-bit, but -DINTSIZE64
+#     was missing from the OPTCMakefile.inc variable. If INFO(2)=8, then Fortran sources
+#     were compiled in a standard way (32-bit integers) but but -DINTSIZE64 was used. Please
+#     fix the Fortran default integer size and/or the use of the -DINTSIZE64 and reinstall and
+#     recompile everything. In particular, make sure that you are not using an old version of the file
+#     mumps int def.h.
+# -70 During a call to MUMPS with JOB= 7, the file specified to save the current instance, as derived from
+#     SAVE DIR and/or SAVE PREFIX, already exists. Before saving an instance into this file, it should
+#     be first suppressed (see JOB= –3). Otherwise, a different file should be specified by changing the
+#     values of SAVE DIR and/or SAVE PREFIX.
+# -71 An error has occurred during the creation of one of the files needed to save MUMPS data (JOB= 7).
+# -72 Error while saving data (JOB= 7); a write operation did not succeed (e.g., disk full, I/O error, . . . ).
+#     INFO(2) is the size that should have been written during that operation.
+#     If INFO(2) is negative, then its absolute value should be multiplied by 1 million.
+# -73 During a call to MUMPS with JOB= 8, one parameter of the current instance is not compatible with
+#     the corresponding one in the saved instance.
+#     INFO(2) points to the incorrect parameter in the table below:
+#                    INFO(2)                           parameter
+#                        1                fortran version (after/before 2003)
+#                        2                      integer size(32/64 bit)
+#                        3        saved instance not compatible over MPI processes
+#                        4                     number of MPI processes
+#                        5                             arithmetic
+#                        6                                SYM
+#                        7                                PAR
+# -74 The file resulting from the setting of SAVE DIR and SAVE PREFIX could not be opened for
+#     restoring data (JOB= 8). INFO(2) is the rank of the process (in the communicator COMM) on
+#     which the error was detected.
+# -75 Error while restoring data (JOB= 8); a read operation did not succeed (e.g., end of file reached, I/O
+#     error, . . . ). INFO(2) is the size still to be read. If INFO(2) is negative, then the size that the
+#     package requested is obtained by multiplying the absolute value of INFO(2) by 1 million.
+# -76 Error while deleting the files (JOB= –3); some files to be erased were not found or could not be
+#     suppressed. INFO(2) is the rank of the process (in the communicator COMM) on which the error
+#     was detected.
+# -77 Problem with SAVE DIR and/or SAVE PREFIX: if INFO(2)=0 then the problem is that
+#     neither SAVE DIR nor the environment variable MUMPS SAVE DIR are defined. If INFO(2)
+#     > 0, the environment variable MUMPS SAVE DIR is defined but its length is larger than the
+#     maximum authorized length indicated by INFO(2). If INFO(2) < 0, the environment variable
+#     MUMPS SAVE PREFIX is defined but its length is larger that the maximum authorized length
+#     indicated by -INFO(2).
+# -78 Problem of workspace allocation during the restore step. The size still to be allocated is available
+#     in INFO(2). If INFO(2) is negative, then the size that the package requested is obtained by
+#     multiplying the absolute value of INFO(2) by 1 million.
+# -79 MUMPS could not find a Fortran file unit to perform I/O’s.              INFO(2) provides additional
+#     information on the error:
+#          • INFO(2)=1: the problem occurs in the analysis phase, when attempting to find a free Fortran
+#            unit for the WRITE PROBLEM feature (see Subsection 5.4.3).
+#          • INFO(2)=2: the problem occurs during a call to MUMPS with JOB= 7, 8 or -3 (save-restore
+#            feature, see Subsection 3.20).
+# -88 An error occurred during SCOTCH ordering. INFO(2) holds the error number returned by
+#     SCOTCH.
+# -89 An error occurred during SCOTCH kway-partitioning in SCOTCHFGRAPHPART. The error code
+#     returned by SCOTCH is provided in INFO(2). We suggest making the METIS package available
+#     to MUMPS.
+# -90 Error in out-of-core management. See the error message returned on output unit ICNTL(1) for
+#     more information.
+# -800 Temporary error associated to the current MUMPS release, subject to change or disappearance
+#     in the future. If INFO(2)=5, then this error is due to the fact that the elemental matrix format
+#     (ICNTL(5)=1) is currently incompatible with a BLR factorization (ICNTL(35)̸=0).
+#    A positive value of INFO(1) is associated with a successful MUMPS execution but with a warning.
+# The corresponding warning message will be output on unit ICNTL(2) when ICNTL(4) ≥ 2.
+# +1 Index (in IRN or JCN) out of range. Action taken by subroutine is to ignore any such entries and
+#      continue. INFO(2) is set to the number of faulty entries.
+# +2 During error analysis the max-norm of the computed solution is close to zero. In some cases, this
+#     could cause difficulties in the computation of RINFOG(6).
+# +4 ICNTL(49)=1,2 and not enough memory to compact id%S at the end of the factorization. If this is
+#     due to memory limitation given by user (ICNTL(23)> 0) then it is advised to reset ICNTL(23)
+#     to zero or to set ICNTL(49)=2.
+# +8 Warning return from the iterative refinement routine. More than ICNTL(10) iterations are required.
+# +16 Warning return from rank-revealing feature (ICNTL(56)).                  The values of the inertia
+#     (INFOG(12)) and/or the determinant (ICNTL(33)) might not be consistent with the number of
+#     singularities. In the context of rank-revealing the inertia and the determinant are computed with RR
+#     (rank-revealing) LU. The deficiency found by RR LU, returned in INFO(2), is different from that
+#     computed with rank-revealing feature (ICNTL(56)). Furthermore, if INFO(2) < INFOG(28),
+#     then the last entries of PIVNUL LIST could not be computed (they are then set to -1).
+# + Combinations of the above warnings will correspond to summing the constituent warnings. For
+#     example, if an MPI process exits the package with INFO(1)=6, this indicates that both warnings
+#     +2 and +4 occurred on this MPI process. In case several warnings occur on an MPI process,
+#     INFO(2) corresponds to the warning that occurred last. Finally, in case of multiple MPI processes,
+#     INFOG(1) combines the warnings raised on the different MPI processes (for example, INFOG(1)
+#     will be equal to 5 if INFO(1)=1, 1 and 4 on MPI processes with ranks 0, 1 and 2, respectively). In
+#     that case, INFOG(2) is simply set to the number of MPI processes on which a warning occurred
+#     and the values of INFO(1) and INFO(2) on each MPI process can be checked for more detailed
+#     information.
+# === End MUMPS snippet ===
+
 
 class INFO(RawArray):
     f"""Integer info array INFO(1..{LEN_INFO}). Read-only in most workflows."""
@@ -3087,6 +3385,61 @@ class RINFO(RawArray):
 # --------------
 # RINFOG members
 # --------------
+
+# === Begin MUMPS snippet: SUBSECTION(5.9) page 40 from userguide_5.8.1.txt:2242-2299 ===
+# 5.9     Post-processing: error analysis
+# MUMPS enables the user to perform classical error analysis based on the residuals. We calculate
+# an estimate of the sparse backward error using the theory and metrics developed in [19] (see
+# Subsection 3.3.2).
+#    If ICNTL(11) = 2, main statistics are computed:
+#    • the infinite norm of the input matrix: ∥A∥∞ or ∥AT ∥∞ = RINFOG(4)
+#    • the infinite norm of the computed solution x̄: ∥x̄∥∞ = RINFOG(5)
+#                            ∥Ax̄−b∥∞
+#    • the scaled residual: ∥A∥∞ ∥x̄∥∞
+#                                      = RINFOG(6)
+#    • ω1 = RINFOG(7)
+#    • ω2 = RINFOG(8)
+#     If ICNTL(11) = 1, in addition to the above statistics, the condition numbers for the linear system
+# (not just the matrix) and an upper bound of the forward error of the computed solution are also returned
+# (see Subsection 3.3.2):
+#    • cond1 = RINFOG(10)
+#    • cond2 = RINFOG(11)
+#    • ∥δx̄∥
+#      ∥x̄∥∞
+#           ∞
+#             ≤ ω1 cond1 + ω2 cond2 = RINFOG(9)
+#    Note that the error analysis in the case of ICNTL(11) = 1 is significantly more costly than the solve
+# phase itself.
+# ICNTL(11) computes statistics related to an error analysis of the linear system solved (Ax = b or
+# AT x = b (see ICNTL(9))).
+#        Phase: accessed by the host and only during the solve phase.
+#        Possible variables/arrays involved: NRHS
+#        Possible values :
+#         0 : no error analysis is performed (no statistics).
+#         1 : compute all the statistics (very expensive).
+#         2 : compute main statistics (norms, residuals, componentwise backward errors), but not the most
+#             expensive ones like (condition number and forward error estimates).
+#        Values different from 0, 1, and 2 are treated as 0.
+#        Default value: 0 (no statistics).
+#        Incompatibility: If ICNTL(21)=1 (solution kept distributed) or if ICNTL(32)=1 (forward
+#        elimination during factorization), or if NRHS>1 (multiple right hand sides), or if ICNTL(20)=10
+#        or 11 (distributed right hand sides), or if ICNTL(25)=-1 (computation of the null space basis),
+#        then error analysis is not performed and ICNTL(11) is treated as 0.
+#        Related parameters: ICNTL(9)
+#        Remarks: The computed statistics are returned in various informational parameters:
+#          – If ICNTL(11)= 2, then the infinite norm of the input matrix (∥A∥∞ or ∥AT ∥∞ in
+#            RINFOG(4)), the infinite norm of the computed solution (∥x̄∥∞ in RINFOG(5)), and the
+#                              ∥Ax̄−b∥∞
+#            scaled residual ∥A∥ ∞ ∥x̄∥∞
+#                                        in RINFOG(6), a componentwise backward error estimate in
+#            RINFOG(7) and RINFOG(8) are computed.
+#          – If ICNTL(11)= 1, then in addition to the above statistics also an estimate for the error in
+#            the solution in RINFOG(9), and condition numbers for the linear system in RINFOG(10) and
+#            RINFOG(11) are also returned.
+#        If performance is critical, ICNTL(11) should be set to 0. If both performance is critical and statistics
+#        are requested, then ICNTL(11) should be set to 2. If ICNTL(11)=1, the error analysis is very costly
+#        (typically significantly more costly than the solve phase itself).
+# === End MUMPS snippet ===
 
 
 class RINFOG(RawArray):

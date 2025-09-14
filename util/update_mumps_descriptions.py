@@ -1078,6 +1078,301 @@ def update_enums_inline() -> None:
     updated_src = inject_mumps_version(updated_src, resolved_version)
     lines = updated_src.splitlines(True)
 
+    # ----------------------------------------------------------
+    # Insert full-text contextual snippets for Subsection 5.9 and Section 8
+    # ----------------------------------------------------------
+    # We extract the entire body of subsection 5.9 (Error analysis) and the
+    # entire Section 8 (Error and warning diagnostics) from the Users' Guide
+    # and inject them as commented blocks into enums.py for convenient in-source
+    # reference. We place 5.9 just before the RINFOG members banner, and 8 just
+    # before the INFO members banner. If such blocks already exist (detected by
+    # their unique begin markers), we replace their content.
+
+    def _resolve_guide_text_and_pages() -> (
+        tuple[Optional[Path], Optional[str], list[Optional[int]]]
+    ):
+        ug_path, ug_text = _resolve_userguide_text()
+        if not ug_text:
+            return ug_path, None, []
+        ug_lines = ug_text.splitlines()
+        # Build a simple page map similar to extract_param_chunks
+        page_at_line: list[Optional[int]] = [None] * len(ug_lines)
+        current_page: Optional[int] = None
+        page_re = re.compile(r"^\s*(\d{1,4})\s*$")
+        for i, ln in enumerate(ug_lines):
+            m = page_re.match(ln)
+            if m:
+                try:
+                    current_page = int(m.group(1))
+                except Exception:
+                    pass
+            page_at_line[i] = current_page
+        return ug_path, ug_text, page_at_line
+
+    def _find_section_span(
+        lines_all: list[str], start_rx: str, end_rx_list: list[str]
+    ) -> tuple[int, int]:
+        """Find body section span starting at a header matching start_rx, skipping TOC entries.
+
+        Heuristic to avoid TOC lines: prefer a match that does NOT contain dotted leaders
+        (". . .") or end with a page number after lots of spaces. If multiple candidates
+        qualify, use the first non-TOC match (body header). Fallback to the last match
+        overall if none qualify.
+        """
+        start_pat = re.compile(start_rx)
+        end_pats = [re.compile(rx) for rx in end_rx_list]
+        candidates: list[int] = []
+        for i, ln in enumerate(lines_all):
+            if start_pat.match(ln):
+                candidates.append(i)
+        if not candidates:
+            return -1, -1
+
+        def looks_like_toc(s: str) -> bool:
+            if re.search(r"\.[\s\.]*\d\s*$", s):
+                # dotted leaders followed by a page number
+                return True
+            if re.search(r"\s\d{1,4}\s*$", s) and (". . ." in s or ".." in s):
+                return True
+            return False
+
+        good = [i for i in candidates if not looks_like_toc(lines_all[i])]
+        # Prefer the first non-TOC match (body header), fallback to the last overall match
+        start = good[0] if good else candidates[-1]
+        end = len(lines_all)
+        for j in range(start + 1, len(lines_all)):
+            ln = lines_all[j]
+            # stop at first matching end pattern
+            for ep in end_pats:
+                if ep.match(ln):
+                    end = j
+                    break
+            if end != len(lines_all):
+                break
+        return start, end
+
+    def _clean_block(slice_lines: list[str]) -> list[str]:
+        # Remove standalone page-number lines and surrounding blank lines; trim edges
+        page_re2 = re.compile(r"^\s*(\d{1,4})\s*$")
+        ff_re2 = re.compile(r"^\f\s*$")
+
+        def is_blank(s: str) -> bool:
+            return s.strip() == ""
+
+        def is_page_line(s: str) -> bool:
+            return bool(page_re2.match(s)) or bool(ff_re2.match(s))
+
+        n = len(slice_lines)
+        to_drop: set[int] = set()
+        i = 0
+        while i < n:
+            if is_page_line(slice_lines[i]):
+                a = i - 1
+                while a >= 0 and is_blank(slice_lines[a]):
+                    to_drop.add(a)
+                    a -= 1
+                to_drop.add(i)
+                b = i + 1
+                while b < n and is_blank(slice_lines[b]):
+                    to_drop.add(b)
+                    b += 1
+                i = b
+                continue
+            i += 1
+        cleaned = [slice_lines[k] for k in range(n) if k not in to_drop]
+        # Trim leading/trailing blanks
+        start = 0
+        while start < len(cleaned) and is_blank(cleaned[start]):
+            start += 1
+        end = len(cleaned)
+        while end > start and is_blank(cleaned[end - 1]):
+            end -= 1
+        # Left-dedent common spaces
+        block = cleaned[start:end]
+
+        def leading_spaces(s: str) -> int:
+            n = 0
+            while n < len(s) and s[n] == " ":
+                n += 1
+            return n
+
+        non_empty = [ln for ln in block if ln.strip()]
+        common = min((leading_spaces(ln) for ln in non_empty), default=0)
+        if common > 0:
+            block = [ln[common:] if len(ln) >= common else ln for ln in block]
+        return block
+
+    def _make_comment_block(
+        title: str,
+        src_name: Optional[str],
+        page: Optional[int],
+        a: int,
+        b: int,
+        slice_lines: list[str],
+    ) -> list[str]:
+        meta_parts = []
+        if page:
+            meta_parts.append(f"page {page}")
+        if src_name:
+            meta_parts.append(f"from {src_name}:{a+1}-{b}")
+        meta = (" " + " ".join(meta_parts)) if meta_parts else ""
+        begin = f"# === Begin MUMPS snippet: {title}{meta} ==="
+        end = "# === End MUMPS snippet ==="
+        out = [begin]
+        for ln in slice_lines:
+            out.append(f"# {ln}".rstrip())
+        out.append(end)
+        return out
+
+    def _insert_or_replace_block_after_banner(
+        file_lines: list[str],
+        header_title: str,
+        begin_marker_prefix: str,
+        block_lines: list[str],
+    ) -> None:
+        """Insert or replace a block right AFTER the full 'XXX members' banner.
+
+        Banner is considered to be the header line '# XXX members' and its underline
+        line '# -----...'. We insert after both lines (and any immediate blank line).
+        If an existing block with the same begin marker exists anywhere, we replace it
+        in place instead of inserting anew.
+        """
+        # If a block with a begin line starting with begin_marker_prefix exists, replace it.
+        begin_idx = None
+        end_idx = None
+        for i, ln in enumerate(file_lines):
+            if ln.strip().startswith(begin_marker_prefix):
+                begin_idx = i
+                # find matching end
+                for j in range(i + 1, len(file_lines)):
+                    if file_lines[j].strip() == "# === End MUMPS snippet ===":
+                        end_idx = j
+                        break
+                break
+        if begin_idx is not None and end_idx is not None:
+            # Remove existing block so we can reinsert at canonical position
+            del file_lines[begin_idx : end_idx + 1]
+            # Remove a single trailing blank line if present at that position
+            if begin_idx < len(file_lines) and file_lines[begin_idx].strip() == "":
+                del file_lines[begin_idx]
+            # Continue to compute insert_at for reinsertion
+        # Otherwise, find banner line '# <TITLE> members' and insert AFTER banner
+        banner = f"# {header_title} members"
+        hdr_line = None
+        for i, ln in enumerate(file_lines):
+            if ln.strip() == banner:
+                hdr_line = i
+                break
+        if hdr_line is not None:
+            # Move to the underline line if present, then beyond it
+            insert_at = hdr_line + 1
+            if insert_at < len(file_lines) and re.match(
+                r"^\s*#\s*-{3,}\s*$", file_lines[insert_at]
+            ):
+                insert_at += 1
+            # Skip a single blank line if present to keep formatting tidy
+            if insert_at < len(file_lines) and file_lines[insert_at].strip() == "":
+                insert_at += 1
+        else:
+            # Fallback 1: insert before the class <HEADER_TITLE>(
+            class_re = re.compile(rf"^\s*class\s+{re.escape(header_title)}\(")
+            insert_at = None  # type: ignore
+            for i, ln in enumerate(file_lines):
+                if class_re.match(ln):
+                    insert_at = i
+                    break
+            if insert_at is None:
+                # Fallback 2: if there are already parameter snippets for this header (e.g. '# === Begin MUMPS snippet: RINFOG('),
+                # insert just before the first such snippet so our contextual block sits in front of the section.
+                snippet_hdr_re = re.compile(
+                    rf"^\s*#\s===\sBegin\sMUMPS\ssnippet:\s{re.escape(header_title)}\(\d+\).*$"
+                )
+                for i, ln in enumerate(file_lines):
+                    if snippet_hdr_re.match(ln):
+                        insert_at = i
+                        break
+            if insert_at is None:
+                # Fallback 3: insert at end of file
+                insert_at = len(file_lines)
+        for bl in block_lines:
+            file_lines.insert(insert_at, bl + "\n")
+            insert_at += 1
+        if insert_at < len(file_lines) and file_lines[insert_at].strip() != "":
+            file_lines.insert(insert_at, "\n")
+
+    # Perform extraction and insertion
+    ug_path, ug_text, page_map = _resolve_guide_text_and_pages()
+    if ug_text:
+        ug_lines = ug_text.splitlines()
+        # Subsection 5.9 span: start at '5.9 ' and end at next '5.<digit+>' or start of section 6
+        s59, e59 = _find_section_span(
+            ug_lines,
+            r"^\s*5\.9\s+.*$",
+            [r"^\s*5\.[1-9]\d*\s+.*$", r"^\s*6\s+.*$"],
+        )
+        if s59 != -1 and e59 != -1 and e59 > s59:
+            s59_lines = _clean_block(ug_lines[s59:e59])
+            p59 = page_map[s59] if 0 <= s59 < len(page_map) else None
+            block59 = _make_comment_block(
+                "SUBSECTION(5.9)",
+                ug_path.name if ug_path else None,
+                p59,
+                s59,
+                e59,
+                s59_lines,
+            )
+            _insert_or_replace_block_after_banner(
+                lines, "RINFOG", "# === Begin MUMPS snippet: SUBSECTION(5.9)", block59
+            )
+
+        # Section 8 span: start at '8 Error and warning diagnostics' to the next top-level section
+        # Find Section 8 header (skip TOC via earlier heuristic) then scan for next top-level section header
+        s8, _tmp = _find_section_span(
+            ug_lines,
+            r"^\s*8\s+Error\s+and\s+warning\s+diagnostics\s*$",
+            [r"$^"],  # no-op end; we'll compute end ourselves
+        )
+        # Compute end as next line matching a top-level section header: optional FF, small leading indent (flush-left header),
+        # digits, at least one space, then title text starting with a letter; number > 8. This avoids stopping on indented
+        # numeric table rows inside Section 8 (e.g., "18  RHS loc").
+        e8 = -1
+        if s8 != -1:
+            # Prefer an exact match for the next section header to avoid accidental matches inside tables.
+            exact_next = re.compile(r"^\s*\f?\s*9\s+Calling\s+MUMPS\s+from\s+C\s*$")
+            for k in range(s8 + 1, len(ug_lines)):
+                if exact_next.match(ug_lines[k]):
+                    e8 = k
+                    break
+            # Fallback: a generic top-level section header
+            if e8 == -1:
+                top_hdr_fallback = re.compile(r"^\s{0,3}\f?\s*(\d{1,2})\s+[A-Za-z].+$")
+                for k in range(s8 + 1, len(ug_lines)):
+                    m2 = top_hdr_fallback.match(ug_lines[k])
+                    if m2:
+                        try:
+                            num = int(m2.group(1))
+                            if num > 8:
+                                e8 = k
+                                break
+                        except Exception:
+                            pass
+            if e8 == -1:
+                e8 = len(ug_lines)
+        if s8 != -1 and e8 != -1 and e8 > s8:
+            s8_lines = _clean_block(ug_lines[s8:e8])
+            p8 = page_map[s8] if 0 <= s8 < len(page_map) else None
+            block8 = _make_comment_block(
+                "SECTION(8)",
+                ug_path.name if ug_path else None,
+                p8,
+                s8,
+                e8,
+                s8_lines,
+            )
+            _insert_or_replace_block_after_banner(
+                lines, "INFO", "# === Begin MUMPS snippet: SECTION(8)", block8
+            )
+
     # Pre-pass: sanitize any malformed or duplicate snippet markers left by prior runs
     def _sanitize_snippet_markers(lines: List[str]) -> List[str]:
         """Remove malformed snippet markers and collapse duplicates by key.
@@ -1088,22 +1383,24 @@ def update_enums_inline() -> None:
         - On End: if there is an open block, close it and emit it only if this (array, index) hasn't been seen yet; otherwise discard.
         - If EOF with an open block: discard it.
         """
+        # Accept any standard Begin marker and capture its full title (e.g., 'ICNTL(4)', 'SECTION(8)', 'SUBSECTION(5.9)').
+        # We deduplicate by this title to keep a single block per unique snippet.
         begin_pat = re.compile(
-            r"^#\s===\sBegin\sMUMPS\ssnippet:\s(?P<arr>[A-Z0-9]+)\((?P<idx>\d+)\)(?:\s+page\s+\d+)?(?:\s+from.*)?\s===\s*$"
+            r"^#\s===\sBegin\sMUMPS\ssnippet:\s(?P<title>.+?)\s===\s*$"
         )
         end_pat = re.compile(r"^#\s===\sEnd\sMUMPS\ssnippet\s===\s*$")
 
         new_lines: List[str] = []
-        seen: set[Tuple[str, int]] = set()
+        seen: set[str] = set()
         acc_block: Optional[List[str]] = None
-        acc_key: Optional[Tuple[str, int]] = None
+        acc_key: Optional[str] = None
 
         for line in lines:
             m = begin_pat.match(line.strip())
             if m:
                 # start a new block; drop any previously open one
                 acc_block = [line]
-                acc_key = (m.group("arr").upper(), int(m.group("idx")))
+                acc_key = m.group("title").strip()
                 continue
 
             if end_pat.match(line.strip()):
