@@ -14,7 +14,6 @@ import scipy.linalg as la
 
 from mumps import Context, MUMPSError, schur_complement, nullspace, complex_to_real
 from ._test_utils import _Random
-from mpi4py import MPI
 
 # Decimal places of precision per datatype. These limits have been determined
 # heuristically by inspecting the upper error bound reported by MUMPS for
@@ -39,14 +38,14 @@ def assert_almost_equal(dtype, a, b):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
+@pytest.mark.mpi_skip
 def test_lu_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
     bmat = rand.randmat(mat_size, mat_size, dtype)
     bvec = rand.randvec(mat_size, dtype)
 
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     ctx.factor(sp.coo_matrix(a))
 
     xvec = ctx.solve(bvec)
@@ -65,6 +64,7 @@ def test_lu_with_dense(dtype, mat_size):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [5, 10], ids=str)
+@pytest.mark.mpi_skip
 def test_schur_complement_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -75,6 +75,7 @@ def test_schur_complement_with_dense(dtype, mat_size):
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [5, 10], ids=str)
 @pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
+@pytest.mark.mpi_skip
 def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -83,8 +84,7 @@ def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
 
     bvec = rand.randvec(mat_size, dtype)
 
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     ctx.set_matrix(a, symmetric=symmetric_matrix)
     ctx.schur(range(3))
 
@@ -94,23 +94,23 @@ def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi_skip
 def test_factor_error(dtype):
     """Test that an error is raised if factor is asked to reuse missing analysis."""
     a = sp.identity(10, dtype=dtype)
     with pytest.raises(ValueError):
-        comm = MPI.COMM_WORLD
-        Context(comm=comm).factor(a, reuse_analysis=True)
+        Context().factor(a, reuse_analysis=True)
 
-    Context(comm=comm).set_matrix(a)
+    Context().set_matrix(a)
     with pytest.raises(ValueError):
-        Context(comm=comm).factor(reuse_analysis=True)
+        Context().factor(reuse_analysis=True)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi_skip
 def test_error_minus_19(dtype):
     """Test if MUMPSError -19 is properly caught by increasing memory"""
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
 
     a = sp.eye(5000, dtype=dtype)
 
@@ -128,12 +128,13 @@ def test_error_minus_19(dtype):
 
     # This call should not raise any errors as
     # it would successfully allocate memory
-    Context(comm=comm).factor(a)
+    Context().factor(a)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [20, 50], ids=str)
 @pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
+@pytest.mark.mpi_skip
 def test_nullspace(dtype, mat_size, symmetric_matrix):
     """Tests the nullspace wrapper by creating a rank deficient matrix
     with known deficiency
@@ -205,30 +206,31 @@ def test_nullspace(dtype, mat_size, symmetric_matrix):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi_skip
 def test_one_by_one(dtype):
     """Test a 1x1 matrix.
 
     This is a regression test for
     https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/18
     """
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     ctx.factor(sp.eye(1, dtype=dtype))
     assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi_skip
 def test_zero_size_rhs(dtype):
     """Test that a 0xn rhs can be solved."""
     a = np.random.randn(10, 10).astype(dtype)
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
     assert_almost_equal(dtype, ctx.solve(rhs), rhs)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi_skip
 def test_symmetric_matrix(dtype):
     """Test that a symmetric matrix can be solved."""
     n = 10
@@ -236,8 +238,7 @@ def test_symmetric_matrix(dtype):
     if np.iscomplexobj(a):
         a += (1j * np.random.randn(n, n)).astype(dtype)
     a += a.T
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     ctx.set_matrix(a, symmetric=True)
     ctx.factor()
     rhs = np.random.randn(n, 1).astype(dtype)
@@ -246,11 +247,11 @@ def test_symmetric_matrix(dtype):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
+@pytest.mark.mpi_skip
 def test_slogdet_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(a))
     # relative comparison of large numbers
     det = la.det(a)
@@ -260,7 +261,7 @@ def test_slogdet_with_dense(dtype, mat_size):
     # test singular matrix
     b = np.zeros((mat_size + 1, mat_size + 1), dtype)
     b[:mat_size][:, :mat_size] = a
-    ctx = Context(comm=comm)
+    ctx = Context()
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(b))
     assert_almost_equal(dtype, sign, 0)
     assert_almost_equal(dtype, logabsdet, -np.inf)
@@ -268,6 +269,7 @@ def test_slogdet_with_dense(dtype, mat_size):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
+@pytest.mark.mpi_skip
 def test_signature_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -279,7 +281,73 @@ def test_signature_with_dense(dtype, mat_size):
         a = complex_to_real(sp.csr_matrix(a))
         sign_ref *= 2
 
-    comm = MPI.COMM_WORLD
-    ctx = Context(comm=comm)
+    ctx = Context()
     sign = ctx.signature(sp.csr_matrix(a))
     assert sign == sign_ref
+
+
+@pytest.mark.mpi
+def test_big_grid():
+    import networkx as nx
+    from ElecSolver import TemporalSystemBuilder
+    size=21
+    G = nx.grid_2d_graph(size, size)
+    pos = {(x,y):(y,-x) for x,y in G.nodes()}
+    center = size**2//2
+
+
+    adjacency = nx.adjacency_matrix(G).tocoo()
+    mask = adjacency.row>adjacency.col
+    impedence_coords = np.array([adjacency.row,adjacency.col],dtype=int)[:,mask]
+    impedence_data = adjacency.data[mask]
+    mask_coil = (np.abs(impedence_coords[0]-impedence_coords[1])==size)*((impedence_coords[0]%size!=(size-1)//2)*(impedence_coords[1]%size!=(size-1)//2))
+    mask_res = ~mask_coil
+    coords_coil = impedence_coords[:,mask_coil]
+    data_coil = impedence_data[mask_coil]
+    coords_res = impedence_coords[:,mask_res]
+    data_res = impedence_data[mask_res]
+
+    coords_capa = np.array([[],[]],dtype=int)
+    data_capa = np.array([],dtype=float)
+
+    mutual_coords = [[],[]]
+    mutual_data = []
+
+
+
+
+    electric_sys = TemporalSystemBuilder(coords_coil,data_coil,coords_res,data_res,coords_capa,data_capa,mutual_coords,mutual_data,mutual_coords,mutual_data)
+    electric_sys.set_ground(0)
+
+    electric_sys.build_second_member_intensity(intensity=2,input_node=0,output_node=center)
+    electric_sys.build_second_member_intensity(intensity=2,input_node=size-1,output_node=center)
+    electric_sys.build_second_member_intensity(intensity=2,input_node=size**2-1,output_node=center)
+    electric_sys.build_second_member_intensity(intensity=2,input_node=size**2-size,output_node=center)
+
+    ## building system
+    electric_sys.build_system()
+    S_i,b = electric_sys.get_init_system()
+
+    ctx = Context()
+    ## set scotch ordering instead of METIS
+
+    ctx.set_matrix(S_i)
+    ctx.analyze()
+    ctx.factor(ordering = "scotch")
+    sol = ctx.solve(b)
+    print(sol)
+
+    S1,S2,rhs = electric_sys.get_system()
+
+    dt=0.8
+    ## Using Implicit Euler integration scheme
+    A = (S2+dt*S1).tocoo()
+    B = rhs*dt
+
+    ctx.set_matrix(A)
+    ctx.analyze()
+    ctx.factor(ordering = "scotch")
+
+    for i in range(100):
+        b = B+S2@sol
+        sol = ctx.solve(b)

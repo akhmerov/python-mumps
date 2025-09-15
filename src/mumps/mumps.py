@@ -227,7 +227,7 @@ class Context:
 
     """
 
-    def __init__(self, verbose=False,comm=None):
+    def __init__(self, verbose=False):
         """Init the Context class
 
         Parameters
@@ -239,11 +239,10 @@ class Context:
         comm : MPI Communicator or None
             use MPI_COMM_WORLD for enabling MPI computation
         """
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
         self.comm = comm
-        if self.comm:
-            self.myid = comm.rank
-        else:
-            self.myid = 0
+        self.myid = comm.rank
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
@@ -518,9 +517,14 @@ class Context:
             raise RuntimeError("Factorization must be done before solving!")
 
         if scipy.sparse.isspmatrix(b):
-            return self._solve_sparse(b)
+            sol = self._solve_sparse(b)
         else:
-            return self._solve_dense(b, overwrite_b)
+            sol = self._solve_dense(b, overwrite_b)
+        ## Sending solution to all workers to avoid having different second members per process
+        if self.comm:
+            self.comm.Bcast(sol, root=0)
+        return sol
+
 
     def schur(
         self,
