@@ -240,6 +240,7 @@ class Context:
             use MPI_COMM_WORLD for enabling MPI computation
         """
         from mpi4py import MPI
+
         comm = MPI.COMM_WORLD
         self.comm = comm
         self.myid = comm.rank
@@ -316,7 +317,9 @@ class Context:
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
         sym = 2 if symmetric else 0
         if self.dtype != dtype:
-            self.mumps_instance = getattr(_mumps, dtype + "mumps")(self.verbose, sym,self.comm)
+            self.mumps_instance = getattr(_mumps, dtype + "mumps")(
+                self.verbose, sym, self.comm
+            )
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13
@@ -441,48 +444,52 @@ class Context:
         self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
-        b = b.tocsc()
-        x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
+        if self.myid == 0:
+            b = b.tocsc()
+            x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
 
-        dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, self.data.dtype)
-
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
-
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
+            dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(
+                b, self.data.dtype
             )
-        self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
-        self.mumps_instance.set_dense_rhs(x)
+
+            if b.shape[0] != self.n:
+                raise ValueError("Right hand side has wrong size")
+
+            if self.dtype != dtype:
+                raise ValueError(
+                    "Data type of right hand side is not "
+                    "compatible with the dtype of the "
+                    "linear system"
+                )
+            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
+            self.mumps_instance.set_dense_rhs(x)
         self.mumps_instance.job = 3
         self.mumps_instance.icntl[20] = 1
         self.call()
-
-        return x
+        if self.myid == 0:
+            return x
 
     def _solve_dense(self, b, overwrite_b=False):
-        dtype, b = prepare_for_fortran(
-            overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
-        )[:2]
+        if self.myid == 0:
+            dtype, b = prepare_for_fortran(
+                overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
+            )[:2]
 
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
+            if b.shape[0] != self.n:
+                raise ValueError("Right hand side has wrong size")
 
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
-            )
+            if self.dtype != dtype:
+                raise ValueError(
+                    "Data type of right hand side is not "
+                    "compatible with the dtype of the "
+                    "linear system"
+                )
 
-        self.mumps_instance.set_dense_rhs(b)
+            self.mumps_instance.set_dense_rhs(b)
         self.mumps_instance.job = 3
         self.call()
-
-        return b
+        if self.myid == 0:
+            return b
 
     def solve(self, b, overwrite_b=False):
         """Solve a linear system after the LU factorization has previously
@@ -520,11 +527,10 @@ class Context:
             sol = self._solve_sparse(b)
         else:
             sol = self._solve_dense(b, overwrite_b)
-        ## Sending solution to all workers to avoid having different second members per process
-        if self.comm:
-            self.comm.Bcast(sol, root=0)
-        return sol
 
+        # Return values only if we are on the main proc
+        if self.myid == 0:
+            return sol
 
     def schur(
         self,

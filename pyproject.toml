@@ -63,7 +63,7 @@ MKL_DYNAMIC = "FALSE"
 MKL_NUM_THREADS = "1"
 
 [tool.pixi.dependencies]
-mumps-mpi = ">=5.8.1,<6"
+mumps-seq = ">=5.8.1,<6"
 scipy = ">=1.15.2,<2"
 numpy = ">=2.2.6,<3"
 setuptools_scm = ">=8.3.1,<9"
@@ -74,7 +74,6 @@ cython = ">=3.1.1,<4"
 pytest = ">=8.3.5,<9"
 git = ">=2.49.0,<3"
 pkgconfig = ">=1.5.5,<2"
-mpi4py = ">=4.1.0,<5"
 
 [tool.pixi.feature.publish.dependencies]
 uv = ">=0.4.5"

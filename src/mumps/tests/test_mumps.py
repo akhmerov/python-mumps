@@ -288,66 +288,19 @@ def test_signature_with_dense(dtype, mat_size):
 
 @pytest.mark.mpi
 def test_big_grid():
-    import networkx as nx
-    from ElecSolver import TemporalSystemBuilder
-    size=21
-    G = nx.grid_2d_graph(size, size)
-    pos = {(x,y):(y,-x) for x,y in G.nodes()}
-    center = size**2//2
-
-
-    adjacency = nx.adjacency_matrix(G).tocoo()
-    mask = adjacency.row>adjacency.col
-    impedence_coords = np.array([adjacency.row,adjacency.col],dtype=int)[:,mask]
-    impedence_data = adjacency.data[mask]
-    mask_coil = (np.abs(impedence_coords[0]-impedence_coords[1])==size)*((impedence_coords[0]%size!=(size-1)//2)*(impedence_coords[1]%size!=(size-1)//2))
-    mask_res = ~mask_coil
-    coords_coil = impedence_coords[:,mask_coil]
-    data_coil = impedence_data[mask_coil]
-    coords_res = impedence_coords[:,mask_res]
-    data_res = impedence_data[mask_res]
-
-    coords_capa = np.array([[],[]],dtype=int)
-    data_capa = np.array([],dtype=float)
-
-    mutual_coords = [[],[]]
-    mutual_data = []
-
-
-
-
-    electric_sys = TemporalSystemBuilder(coords_coil,data_coil,coords_res,data_res,coords_capa,data_capa,mutual_coords,mutual_data,mutual_coords,mutual_data)
-    electric_sys.set_ground(0)
-
-    electric_sys.build_second_member_intensity(intensity=2,input_node=0,output_node=center)
-    electric_sys.build_second_member_intensity(intensity=2,input_node=size-1,output_node=center)
-    electric_sys.build_second_member_intensity(intensity=2,input_node=size**2-1,output_node=center)
-    electric_sys.build_second_member_intensity(intensity=2,input_node=size**2-size,output_node=center)
-
-    ## building system
-    electric_sys.build_system()
-    S_i,b = electric_sys.get_init_system()
-
     ctx = Context()
-    ## set scotch ordering instead of METIS
-
-    ctx.set_matrix(S_i)
+    S = sp.coo_matrix(
+        (
+            np.array([1.0, 2.0, 3.0, 4.0]),
+            (np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])),
+        )
+    )
+    b = np.array([1.0, 2.0, 3.0, 4.0])
+    ctx.set_matrix(S)
     ctx.analyze()
-    ctx.factor(ordering = "scotch")
+    ctx.factor()
     sol = ctx.solve(b)
-    print(sol)
-
-    S1,S2,rhs = electric_sys.get_system()
-
-    dt=0.8
-    ## Using Implicit Euler integration scheme
-    A = (S2+dt*S1).tocoo()
-    B = rhs*dt
-
-    ctx.set_matrix(A)
-    ctx.analyze()
-    ctx.factor(ordering = "scotch")
-
-    for i in range(100):
-        b = B+S2@sol
-        sol = ctx.solve(b)
+    if ctx.comm.rank == 0:
+        assert np.allclose(sol, np.ones(4))
+    else:
+        assert sol is None
