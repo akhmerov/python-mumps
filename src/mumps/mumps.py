@@ -236,8 +236,6 @@ class Context:
         verbose : True or False
             control whether MUMPS prints lots of internal statistics
             and debug information to screen.
-        comm : MPI Communicator or None
-            use MPI_COMM_WORLD for enabling MPI computation
         """
         from mpi4py import MPI
 

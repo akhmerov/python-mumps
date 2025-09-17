@@ -287,7 +287,7 @@ def test_signature_with_dense(dtype, mat_size):
 
 
 @pytest.mark.mpi
-def test_big_grid():
+def test_mpi_run():
     ctx = Context()
     S = sp.coo_matrix(
         (
