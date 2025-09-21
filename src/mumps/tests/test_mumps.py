@@ -38,7 +38,6 @@ def assert_almost_equal(dtype, a, b):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
-@pytest.mark.mpi_skip
 def test_lu_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -94,7 +93,6 @@ def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.mpi_skip
 def test_factor_error(dtype):
     """Test that an error is raised if factor is asked to reuse missing analysis."""
     a = sp.identity(10, dtype=dtype)
@@ -206,7 +204,6 @@ def test_nullspace(dtype, mat_size, symmetric_matrix):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.mpi_skip
 def test_one_by_one(dtype):
     """Test a 1x1 matrix.
 
@@ -215,22 +212,22 @@ def test_one_by_one(dtype):
     """
     ctx = Context()
     ctx.factor(sp.eye(1, dtype=dtype))
-    assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.mpi_skip
 def test_zero_size_rhs(dtype):
     """Test that a 0xn rhs can be solved."""
     a = np.random.randn(10, 10).astype(dtype)
     ctx = Context()
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
-    assert_almost_equal(dtype, ctx.solve(rhs), rhs)
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, ctx.solve(rhs), rhs)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.mpi_skip
 def test_symmetric_matrix(dtype):
     """Test that a symmetric matrix can be solved."""
     n = 10
@@ -242,7 +239,8 @@ def test_symmetric_matrix(dtype):
     ctx.set_matrix(a, symmetric=True)
     ctx.factor()
     rhs = np.random.randn(n, 1).astype(dtype)
-    assert_almost_equal(dtype, ctx.solve(rhs), la.solve(a, rhs))
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, ctx.solve(rhs), la.solve(a, rhs))
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -285,22 +283,23 @@ def test_signature_with_dense(dtype, mat_size):
     sign = ctx.signature(sp.csr_matrix(a))
     assert sign == sign_ref
 
-
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.mpi
-def test_mpi_run():
+def test_mpi_run(dtype):
     ctx = Context()
     S = sp.coo_matrix(
         (
             np.array([1.0, 2.0, 3.0, 4.0]),
             (np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])),
-        )
+        ),
+        dtype=dtype,
     )
-    b = np.array([1.0, 2.0, 3.0, 4.0])
+    b = np.array([1.0, 2.0, 3.0, 4.0], dtype=dtype)
     ctx.set_matrix(S)
     ctx.analyze()
     ctx.factor()
     sol = ctx.solve(b)
     if ctx.comm.rank == 0:
-        assert np.allclose(sol, np.ones(4))
+        assert np.allclose(sol, np.ones(4,dtype=dtype))
     else:
         assert sol is None
