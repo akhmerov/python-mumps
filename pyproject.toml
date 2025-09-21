@@ -91,7 +91,7 @@ mumps-seq = ">=5.8.1,<6"
 
 [tool.pixi.feature.mpi.dependencies]
 mumps-mpi = ">=5.8.1,<6"
-mpi4py = ">=4.1.0,
+mpi4py = ">=4.1.0,<5"
 
 [tool.pixi.pypi-options]
 no-build-isolation = ["python-mumps"]
