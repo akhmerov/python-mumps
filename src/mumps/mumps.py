@@ -237,11 +237,14 @@ class Context:
             control whether MUMPS prints lots of internal statistics
             and debug information to screen.
         """
-        from mpi4py import MPI
-
-        comm = MPI.COMM_WORLD
-        self.comm = comm
-        self.myid = comm.rank
+        try:
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            self.comm = comm
+            self.myid = comm.rank
+        except ImportError:
+            self.comm = None
+            self.myid = 0
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
