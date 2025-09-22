@@ -49,16 +49,16 @@ def test_lu_with_dense(dtype, mat_size):
 
     xvec = ctx.solve(bvec)
     xmat = ctx.solve(bmat)
-
-    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
-    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
+    if ctx.myid == 0:
+        assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
+        assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
     # now "sparse" right hand side
     xvec = ctx.solve(sp.csc_matrix(bvec.reshape(mat_size, 1)))
     xmat = ctx.solve(sp.csc_matrix(bmat))
-
-    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
-    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
+    if ctx.myid == 0:
+        assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
+        assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -105,7 +105,6 @@ def test_factor_error(dtype):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
-@pytest.mark.mpi_skip
 def test_error_minus_19(dtype):
     """Test if MUMPSError -19 is properly caught by increasing memory"""
     ctx = Context()
@@ -212,8 +211,9 @@ def test_one_by_one(dtype):
     """
     ctx = Context()
     ctx.factor(sp.eye(1, dtype=dtype))
+    sol = ctx.solve(np.array([1], dtype=dtype))
     if ctx.myid == 0:
-        assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
+        assert_almost_equal(dtype, sol, 1)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -223,8 +223,9 @@ def test_zero_size_rhs(dtype):
     ctx = Context()
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
+    sol = ctx.solve(rhs)
     if ctx.myid == 0:
-        assert_almost_equal(dtype, ctx.solve(rhs), rhs)
+        assert_almost_equal(dtype, sol, rhs)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -239,8 +240,9 @@ def test_symmetric_matrix(dtype):
     ctx.set_matrix(a, symmetric=True)
     ctx.factor()
     rhs = np.random.randn(n, 1).astype(dtype)
+    sol = ctx.solve(rhs)
     if ctx.myid == 0:
-        assert_almost_equal(dtype, ctx.solve(rhs), la.solve(a, rhs))
+        assert_almost_equal(dtype, sol, la.solve(a, rhs))
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -283,6 +285,7 @@ def test_signature_with_dense(dtype, mat_size):
     sign = ctx.signature(sp.csr_matrix(a))
     assert sign == sign_ref
 
+
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.mpi
 def test_mpi_run(dtype):
@@ -300,6 +303,6 @@ def test_mpi_run(dtype):
     ctx.factor()
     sol = ctx.solve(b)
     if ctx.comm.rank == 0:
-        assert np.allclose(sol, np.ones(4,dtype=dtype))
+        assert np.allclose(sol, np.ones(4, dtype=dtype))
     else:
         assert sol is None

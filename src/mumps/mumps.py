@@ -239,6 +239,7 @@ class Context:
         """
         try:
             from mpi4py import MPI
+
             comm = MPI.COMM_WORLD
             self.comm = comm
             self.myid = comm.rank
@@ -464,8 +465,8 @@ class Context:
                 )
             self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
             self.mumps_instance.set_dense_rhs(x)
+            self.mumps_instance.icntl[20] = 1
         self.mumps_instance.job = 3
-        self.mumps_instance.icntl[20] = 1
         self.call()
         if self.myid == 0:
             return x
@@ -1031,6 +1032,9 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         ctx.mumps_instance.icntl[25] = -1
         ctx.call()
 
+        ## If MPI mode broadcast nullspace
+        if ctx.comm is not None:
+            ctx.comm.Bcast(nullspace, root=0)
     # Orthonormalize
     nullspace, _ = la.qr(nullspace, mode="economic")
 
