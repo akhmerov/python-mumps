@@ -131,7 +131,6 @@ def test_error_minus_19(dtype):
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [20, 50], ids=str)
 @pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
-@pytest.mark.mpi_skip
 def test_nullspace(dtype, mat_size, symmetric_matrix):
     """Tests the nullspace wrapper by creating a rank deficient matrix
     with known deficiency
@@ -247,7 +246,6 @@ def test_symmetric_matrix(dtype):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
-@pytest.mark.mpi_skip
 def test_slogdet_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -255,21 +253,22 @@ def test_slogdet_with_dense(dtype, mat_size):
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(a))
     # relative comparison of large numbers
     det = la.det(a)
-    assert_almost_equal(dtype, sign, det / np.abs(det))
-    assert_almost_equal(dtype, logabsdet, np.log(np.abs(det)))
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sign, det / np.abs(det))
+        assert_almost_equal(dtype, logabsdet, np.log(np.abs(det)))
 
     # test singular matrix
     b = np.zeros((mat_size + 1, mat_size + 1), dtype)
     b[:mat_size][:, :mat_size] = a
     ctx = Context()
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(b))
-    assert_almost_equal(dtype, sign, 0)
-    assert_almost_equal(dtype, logabsdet, -np.inf)
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sign, 0)
+        assert_almost_equal(dtype, logabsdet, -np.inf)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
-@pytest.mark.mpi_skip
 def test_signature_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -283,7 +282,8 @@ def test_signature_with_dense(dtype, mat_size):
 
     ctx = Context()
     sign = ctx.signature(sp.csr_matrix(a))
-    assert sign == sign_ref
+    if ctx.myid == 0:
+        assert sign == sign_ref
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
