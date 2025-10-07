@@ -302,7 +302,7 @@ def test_mpi_run(dtype):
     ctx.analyze()
     ctx.factor()
     sol = ctx.solve(b)
-    if ctx.comm.rank == 0:
+    if ctx.myid == 0:
         assert np.allclose(sol, np.ones(4, dtype=dtype))
     else:
         assert sol is None
