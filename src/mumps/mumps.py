@@ -1032,7 +1032,7 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         ctx.mumps_instance.icntl[25] = -1
         ctx.call()
 
-        ## If MPI mode broadcast nullspace
+        # If MPI mode broadcast nullspace
         if ctx.comm is not None:
             ctx.comm.Bcast(nullspace, root=0)
     # Orthonormalize
