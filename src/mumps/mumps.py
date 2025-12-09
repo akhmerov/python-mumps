@@ -266,6 +266,7 @@ class Context:
         self.verbose = verbose
         self.analyzed = False
         self.factored = False
+        self.blr_enabled = False
         self.schur_complement = None
         self.schur_indices = None
         self.schur_rhs = None
@@ -306,6 +307,22 @@ class Context:
             raise MUMPSError(self.mumps_instance.infog)
         return t2 - t1
 
+    def activate_blr(self, option: int, precision: float = 0.0):
+        """Function to activate BLR (reduced RAM and CPU usage)
+
+        Parameters
+        ----------
+        option : int
+
+        precision : float, optional
+            Error tolerated on the solution of the system, increasing the precision
+        """
+        if self.analyzed:
+            raise ValueError("BLR must be activated before running analysis")
+        self.blr_enabled = True
+        self.blr_option = option
+        self.blr_precision = precision
+
     def set_matrix(self, a, overwrite_a=False, symmetric=False):
         """Set the matrix to be used in the next analysis or factorization step.
 
@@ -339,6 +356,8 @@ class Context:
             self.mumps_instance = getattr(_mumps, dtype + "mumps")(
                 self.verbose, sym, self.comm
             )
+            if self.blr_enabled and self.myid == 0:
+                self.mumps_instance.activate_blr(self.blr_option, self.blr_precision)
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13

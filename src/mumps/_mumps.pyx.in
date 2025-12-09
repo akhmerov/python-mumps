@@ -216,4 +216,10 @@ cdef class {{p.lower()}}mumps:
         self.params.lredrhs = rhs.shape[0]
         self.params.redrhs = <mumps.{{p}}MUMPS_COMPLEX *>rhs.data
 
+    def activate_blr(self,mumps.MUMPS_INT option, mumps.{{p}}MUMPS_REAL precision = 0.0 ):
+        ## Function to use BLR given a precision
+        self.icntl[35] = option
+        self.cntl[7] = precision
+
+
 {{endfor}}
