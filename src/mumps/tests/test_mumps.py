@@ -38,13 +38,16 @@ def assert_almost_equal(dtype, a, b):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [2, 10, 100], ids=str)
-def test_lu_with_dense(dtype, mat_size):
+@pytest.mark.parametrize("blr", [False, True], ids=str)
+def test_lu_with_dense(dtype, mat_size, blr):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
     bmat = rand.randmat(mat_size, mat_size, dtype)
     bvec = rand.randvec(mat_size, dtype)
 
     ctx = Context()
+    if blr:
+        ctx.activate_blr(option=1)
     ctx.factor(sp.coo_matrix(a))
 
     xvec = ctx.solve(bvec)
