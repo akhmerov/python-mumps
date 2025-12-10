@@ -546,6 +546,13 @@ class Context:
 
         if scipy.sparse.isspmatrix(b):
             sol = self._solve_sparse(b)
+        elif isinstance(b, scipy.sparse.coo_array) and len(b.shape) == 1:
+            ## in case one wants to provide only one rhs as a scipy.sparse.coo_array
+            b_matrix = scipy.sparse.coo_matrix(
+                (b.data, (b.coords[0], np.zeros_like(b.coords[0], dtype=int))),
+                shape=(b.shape[0], 1),
+            )
+            sol = self._solve_sparse(b_matrix).ravel()
         else:
             sol = self._solve_dense(b, overwrite_b)
 
