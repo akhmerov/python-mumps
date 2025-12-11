@@ -507,6 +507,7 @@ class Context:
                 )
 
             self.mumps_instance.set_dense_rhs(b)
+            self.mumps_instance.icntl[20] = 0  # in case sparse rhs was used before
         self.mumps_instance.job = 3
         self.call()
         if self.myid == 0:
@@ -552,7 +553,9 @@ class Context:
                 (b.data, (b.coords[0], np.zeros_like(b.coords[0], dtype=int))),
                 shape=(b.shape[0], 1),
             )
-            sol = self._solve_sparse(b_matrix).ravel()
+            sol = self._solve_sparse(b_matrix)
+            if self.myid == 0:
+                sol = sol.ravel()
         else:
             sol = self._solve_dense(b, overwrite_b)
 
