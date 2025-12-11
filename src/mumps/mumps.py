@@ -529,6 +529,7 @@ class Context:
                 )
 
             self.mumps_instance.set_dense_rhs(b)
+            self.mumps_instance.icntl[20] = 0  # in case sparse rhs was used before
         self.mumps_instance.job = 3
         self.call()
         if self.myid == 0:
