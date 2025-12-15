@@ -313,12 +313,24 @@ class Context:
         Parameters
         ----------
         option : int
+            Mode of activation of BLR: 0 is inactive, 1 automatic BLR mode selection.
+            For details about other modes see MUMPS documentation
 
         precision : float, optional
             Error tolerated on the solution of the system, increasing the precision
         """
-        if self.analyzed:
-            raise ValueError("BLR must be activated before running analysis")
+        if self.mumps_instance:
+            if self.myid == 0:
+                self.mumps_instance.activate_blr(self.blr_option, self.blr_precision)
+            if self.analyzed and self.verbose:
+                ## Print warning only if verbose is active
+                print(
+                    "Warning: BLR is activated after analysis was run,"
+                    " analysis needs to be performed again"
+                )
+            ## BLR requires rerunning analysis and factorization after activation
+            self.analyzed = False
+            self.factored = False
         self.blr_enabled = True
         self.blr_option = option
         self.blr_precision = precision
