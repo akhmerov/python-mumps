@@ -237,11 +237,21 @@ class Context:
             control whether MUMPS prints lots of internal statistics
             and debug information to screen.
         """
+        try:
+            from mpi4py import MPI
+
+            comm = MPI.COMM_WORLD
+            self.comm = comm
+            self.myid = comm.rank
+        except ImportError:
+            self.comm = None
+            self.myid = 0
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
         self.analyzed = False
         self.factored = False
+        self.blr_enabled = False
         self.schur_complement = None
         self.schur_indices = None
         self.schur_rhs = None
@@ -281,6 +291,34 @@ class Context:
             raise MUMPSError(self.mumps_instance.infog)
         return t2 - t1
 
+    def activate_blr(self, option: int, precision: float = 0.0):
+        """Function to activate BLR (reduced RAM and CPU usage)
+
+        Parameters
+        ----------
+        option : int
+            Mode of activation of BLR: 0 is inactive, 1 automatic BLR mode selection.
+            For details about other modes see MUMPS documentation
+
+        precision : float, optional
+            Error tolerated on the solution of the system, increasing the precision
+        """
+        if self.mumps_instance:
+            if self.myid == 0:
+                self.mumps_instance.activate_blr(self.blr_option, self.blr_precision)
+            if self.analyzed and self.verbose:
+                ## Print warning only if verbose is active
+                print(
+                    "Warning: BLR is activated after analysis was run,"
+                    " analysis needs to be performed again"
+                )
+            ## BLR requires rerunning analysis and factorization after activation
+            self.analyzed = False
+            self.factored = False
+        self.blr_enabled = True
+        self.blr_option = option
+        self.blr_precision = precision
+
     def set_matrix(self, a, overwrite_a=False, symmetric=False):
         """Set the matrix to be used in the next analysis or factorization step.
 
@@ -310,7 +348,11 @@ class Context:
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
         sym = 2 if symmetric else 0
         if self.dtype != dtype:
-            self.mumps_instance = getattr(_mumps, dtype + "mumps")(self.verbose, sym)
+            self.mumps_instance = getattr(_mumps, dtype + "mumps")(
+                self.verbose, sym, self.comm
+            )
+            if self.blr_enabled and self.myid == 0:
+                self.mumps_instance.activate_blr(self.blr_option, self.blr_precision)
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13
@@ -318,7 +360,8 @@ class Context:
         self.row = row
         self.col = col
         self.data = data
-        self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+        if self.myid == 0:
+            self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
         self.factored = False
 
     def analyze(self, a=None, ordering="auto", overwrite_a=False):
@@ -434,49 +477,53 @@ class Context:
         self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
-        b = b.tocsc()
-        x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
+        if self.myid == 0:
+            b = b.tocsc()
+            x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
 
-        dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, self.data.dtype)
-
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
-
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
+            dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(
+                b, self.data.dtype
             )
 
-        self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
-        self.mumps_instance.set_dense_rhs(x)
-        self.mumps_instance.job = 3
-        self.mumps_instance.icntl[20] = 1
-        self.call()
+            if b.shape[0] != self.n:
+                raise ValueError("Right hand side has wrong size")
 
-        return x
+            if self.dtype != dtype:
+                raise ValueError(
+                    "Data type of right hand side is not "
+                    "compatible with the dtype of the "
+                    "linear system"
+                )
+            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
+            self.mumps_instance.set_dense_rhs(x)
+            self.mumps_instance.icntl[20] = 1
+        self.mumps_instance.job = 3
+        self.call()
+        if self.myid == 0:
+            return x
 
     def _solve_dense(self, b, overwrite_b=False):
-        dtype, b = prepare_for_fortran(
-            overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
-        )[:2]
+        if self.myid == 0:
+            dtype, b = prepare_for_fortran(
+                overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
+            )[:2]
 
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
+            if b.shape[0] != self.n:
+                raise ValueError("Right hand side has wrong size")
 
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
-            )
+            if self.dtype != dtype:
+                raise ValueError(
+                    "Data type of right hand side is not "
+                    "compatible with the dtype of the "
+                    "linear system"
+                )
 
-        self.mumps_instance.set_dense_rhs(b)
+            self.mumps_instance.set_dense_rhs(b)
+            self.mumps_instance.icntl[20] = 0  # in case sparse rhs was used before
         self.mumps_instance.job = 3
         self.call()
-
-        return b
+        if self.myid == 0:
+            return b
 
     def solve(self, b, overwrite_b=False):
         """Solve a linear system after the LU factorization has previously
@@ -511,9 +558,22 @@ class Context:
             raise RuntimeError("Factorization must be done before solving!")
 
         if scipy.sparse.isspmatrix(b):
-            return self._solve_sparse(b)
+            sol = self._solve_sparse(b)
+        elif isinstance(b, scipy.sparse.coo_array) and len(b.shape) == 1:
+            ## in case one wants to provide only one rhs as a scipy.sparse.coo_array
+            b_matrix = scipy.sparse.coo_matrix(
+                (b.data, (b.coords[0], np.zeros_like(b.coords[0], dtype=int))),
+                shape=(b.shape[0], 1),
+            )
+            sol = self._solve_sparse(b_matrix)
+            if self.myid == 0:
+                sol = sol.ravel()
         else:
-            return self._solve_dense(b, overwrite_b)
+            sol = self._solve_dense(b, overwrite_b)
+
+        # Return values only if we are on the main proc
+        if self.myid == 0:
+            return sol
 
     def schur(
         self,
@@ -1014,6 +1074,9 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         ctx.mumps_instance.icntl[25] = -1
         ctx.call()
 
+        ## If MPI mode broadcast nullspace
+        if ctx.comm is not None:
+            ctx.comm.Bcast(nullspace, root=0)
     # Orthonormalize
     nullspace, _ = la.qr(nullspace, mode="economic")
 
