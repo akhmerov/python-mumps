@@ -613,12 +613,18 @@ class Context:
         if b.shape[0] != self.n:
             raise ValueError("Right hand side has wrong size")
 
-        if len(b.shape) > 1 and b.shape[0] > 0:
-            raise ValueError("Right hand side must be a vector, not a matrix.")
+        if b.ndim not in (1, 2):
+            raise ValueError("Right hand side must be a vector or a matrix.")
 
+        nrhs = 1 if b.ndim == 1 else b.shape[1]
         dtype = self.data.dtype
 
-        self.schur_rhs = np.empty((self.schur_indices.size,), dtype=dtype)
+        if nrhs == 1:
+            self.schur_rhs = np.empty((self.schur_indices.size,), dtype=dtype)
+        else:
+            self.schur_rhs = np.empty(
+                (self.schur_indices.size, nrhs), order="F", dtype=dtype
+            )
         self.mumps_instance.set_schur_rhs(self.schur_rhs)
 
         if scipy.sparse.isspmatrix(b):

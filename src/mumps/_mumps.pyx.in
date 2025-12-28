@@ -203,8 +203,12 @@ cdef class {{p.lower()}}mumps:
         self.params.schur = <mumps.{{p}}MUMPS_COMPLEX *>schur.data
         self.params.listvar_schur = <mumps.MUMPS_INT *>schur_vars.data
 
-    def set_schur_rhs(self,
-                      np.ndarray[{{p}}MUMPS_COMPLEX_NPT, ndim=1, mode='c'] rhs):
+    def set_schur_rhs(self, np.ndarray rhs):
+
+        assert_fortran_matvec(rhs)
+
+        if rhs.dtype != {{p}}MUMPS_COMPLEX_NP:
+            raise ValueError("numpy array must be of dtype {}".format({{p}}MUMPS_COMPLEX_NP))
 
         self.params.lredrhs = rhs.shape[0]
         self.params.redrhs = <mumps.{{p}}MUMPS_COMPLEX *>rhs.data
