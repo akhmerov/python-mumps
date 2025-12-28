@@ -18,7 +18,8 @@ pre-commit:
 
 test:
   script:
-    - pixi run test
+    - pixi run -e minimal test
+    - pixi run -e latest test
   cache:
     key: "$CI_JOB_NAME"
     paths:

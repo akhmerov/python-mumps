@@ -27,8 +27,8 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows"
 ]
-requires-python = ">= 3.11"
-dependencies = [ "numpy>=1.26", "scipy>=1.11.0"]
+requires-python = ">= 3.12"
+dependencies = [ "numpy>=2.0", "scipy>=1.13.0"]
 dynamic = ["version"]
 
 [project.urls]
@@ -63,9 +63,10 @@ MKL_DYNAMIC = "FALSE"
 MKL_NUM_THREADS = "1"
 
 [tool.pixi.dependencies]
+python = ">=3.12"
 mumps-seq = ">=5.8.1,<6"
-scipy = ">=1.15.2,<2"
-numpy = ">=2.2.6,<3"
+scipy = ">=1.13"
+numpy = ">=2.0"
 setuptools_scm = ">=8.3.1,<9"
 meson-python = ">=0.18.0,<0.19"
 compilers = ">=1.9.0,<2"
@@ -86,11 +87,16 @@ git = "*"
 [tool.pixi.feature.develop.dependencies]
 ipykernel = ">=6.29.0"
 
+[tool.pixi.feature.minimal]
+solve-strategy = "lowest-direct"
+
 [tool.pixi.pypi-options]
 no-build-isolation = ["python-mumps"]
 
 [tool.pixi.environments]
 default = { features = ["develop", "publish", "precommit"],  solve-group = "default" }
+minimal = { features = ["minimal"] }
+latest = { features = [] }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"] }
 
