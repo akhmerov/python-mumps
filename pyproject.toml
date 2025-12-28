@@ -49,8 +49,9 @@ skip = ["*.lock"]
 ignore-words-list = "groth,coo"
 
 [tool.pixi.workspace]
-channels = ["conda-forge"]
+channels = ["https://prefix.dev/pixi-build-backends", "conda-forge"]
 platforms = ["linux-64"]
+preview = ["pixi-build"]
 
 [tool.pixi.pypi-dependencies]
 python-mumps = { path = ".", editable = true }
@@ -75,6 +76,36 @@ cython = ">=3.1.1,<4"
 pytest = ">=8.3.5,<9"
 git = ">=2.49.0,<3"
 pkgconfig = ">=1.5.5,<2"
+
+[tool.pixi.package]
+name = "python-mumps"
+version = "0.0.4" # TODO: Replace once pixi-build supports dynamic versions.
+readme = "README.md"
+authors = ["Python-MUMPS authors <authors@kwant-project.org>"]
+license = "BSD-2-Clause"
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "==0.4.0" }
+
+[tool.pixi.package.host-dependencies]
+python = ">=3.12"
+cython = ">=3.1.1"
+meson = ">=1.8.0"
+meson-python = ">=0.18.0"
+numpy = ">=2.0"
+mumps-seq = ">=5.8.1,<6"
+setuptools-scm = ">=8"
+pip = "*"
+python-build = "*"
+compilers = ">=1.9.0,<2"
+ninja = ">=1.12.1,<2"
+pkg-config = "*"
+
+[tool.pixi.package.run-dependencies]
+python = ">=3.12"
+numpy = ">=2.0"
+scipy = ">=1.13"
+mumps-seq = ">=5.8.1,<6"
 
 [tool.pixi.feature.publish.dependencies]
 uv = ">=0.4.5"
