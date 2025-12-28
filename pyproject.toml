@@ -48,7 +48,7 @@ line-length = 88
 skip = ["*.lock"]
 ignore-words-list = "groth,coo"
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
