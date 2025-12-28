@@ -246,6 +246,7 @@ class Context:
         self.schur_indices = None
         self.schur_rhs = None
         self.schur_x = None
+        self._schur_x_vector = False
 
     def __enter__(self):
         return self
@@ -286,9 +287,10 @@ class Context:
 
         Parameters
         ----------
-        a : sparse SciPy array
-            input matrix. Internally, the matrix is converted to `coo` format
-            (so passing this format is best for performance).
+        a : sparse SciPy array or matrix
+            input matrix. Sparse arrays are preferred. Internally, the matrix
+            is converted to `coo` format (so passing this format is best for
+            performance).
         overwrite_a : True or False
             whether the data in a may be overwritten, which can lead to a small
             performance gain. Default is False.
@@ -334,10 +336,11 @@ class Context:
         Parameters
         ----------
 
-        a : sparse SciPy matrix
-            input matrix. Internally, the matrix is converted to `coo` format
-            (so passing this format is best for performance). If `a` is not
-            given, the matrix passed to `set_matrix` is used.
+        a : sparse SciPy array or matrix
+            input matrix. Sparse arrays are preferred. Internally, the matrix
+            is converted to `coo` format (so passing this format is best for
+            performance). If `a` is not given, the matrix passed to
+            `set_matrix` is used.
         ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
             ordering to use in the factorization. The availability of a
             particular ordering depends on the MUMPS installation.  Default is
@@ -376,10 +379,11 @@ class Context:
         Parameters
         ----------
 
-        a : sparse SciPy matrix
-            input matrix. Internally, the matrix is converted to `coo` format
-            (so passing this format is best for performance). If `a` is not
-            given, the matrix passed to `analyze` is used.
+        a : sparse SciPy array or matrix
+            input matrix. Sparse arrays are preferred. Internally, the matrix
+            is converted to `coo` format (so passing this format is best for
+            performance). If `a` is not given, the matrix passed to `analyze`
+            is used.
         ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
             ordering to use in the factorization. The availability of a
             particular ordering depends on the MUMPS installation.  Default is
@@ -434,6 +438,7 @@ class Context:
         self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
+        b, is_vector = _coerce_sparse_rhs(b)
         b = b.tocsc()
         x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
 
@@ -455,6 +460,8 @@ class Context:
         self.mumps_instance.icntl[20] = 1
         self.call()
 
+        if is_vector:
+            return x[:, 0]
         return x
 
     def _solve_dense(self, b, overwrite_b=False):
@@ -487,10 +494,11 @@ class Context:
         Parameters
         ----------
 
-        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+        b : dense (NumPy) array or sparse (SciPy) array or matrix
             the right hand side to solve. Accepts both dense and sparse input;
-            if the input is sparse 'csc' format is used internally (so passing
-            a 'csc' matrix gives best performance).
+            1d sparse arrays are treated as column vectors. If the input is
+            sparse, `csc` format is used internally (so passing a `csc` sparse
+            array or matrix gives best performance).
         overwrite_b : True or False
             whether the data in b may be overwritten, which can lead to a small
             performance gain. Default is False.
@@ -499,18 +507,17 @@ class Context:
         -------
 
         x : NumPy array
-            the solution to the linear system as a dense matrix (a vector is
-            returned if b was a vector, otherwise a matrix is returned).
+            the solution to the linear system as a dense array. A 1d array is
+            returned if b was 1d, otherwise a 2d array is returned.
         """
         if b.ndim == 2 and b.shape[1] == 0:
             # Empty right hand side
-            # We can return the copy directly because there is no data to be mutated.
-            return b
+            return np.empty((b.shape[0], 0), dtype=b.dtype)
 
         if not self.factored:
             raise RuntimeError("Factorization must be done before solving!")
 
-        if scipy.sparse.isspmatrix(b):
+        if scipy.sparse.issparse(b):
             return self._solve_sparse(b)
         else:
             return self._solve_dense(b, overwrite_b)
@@ -532,9 +539,10 @@ class Context:
             indices (row and column) of the desired Schur complement block.  (The
             Schur complement block is square, so that the indices are both row and
             column indices.)
-        a : sparse matrix
-            input matrix. Internally, the matrix is converted to `coo` format (so
-            passing this format is best for performance)
+        a : sparse SciPy array or matrix
+            input matrix. Sparse arrays are preferred. Internally, the matrix is
+            converted to `coo` format (so passing this format is best for
+            performance).
         ordering : { 'auto', 'amd', 'amf', 'scotch', 'pord', 'metis', 'qamd' }
             ordering to use in the factorization. The availability of a particular
             ordering depends on the MUMPS installation.  Default is 'auto'.
@@ -589,10 +597,11 @@ class Context:
         Parameters
         ----------
 
-        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+        b : dense (NumPy) array or sparse (SciPy) array or matrix
             the right hand side to solve. Accepts both dense and sparse input;
-            if the input is sparse 'csc' format is used internally (so passing
-            a 'csc' matrix gives best performance).
+            1d sparse arrays are treated as column vectors. If the input is
+            sparse, `csc` format is used internally (so passing a `csc` sparse
+            array or matrix gives best performance).
         overwrite_b : True or False
             whether the data in b may be overwritten, which can lead to a small
             performance gain. Default is False.
@@ -601,8 +610,8 @@ class Context:
         -------
 
         schur_rhs : NumPy array
-            the solution to the linear system as a dense matrix (a vector is
-            returned if b was a vector, otherwise a matrix is returned).
+            the condensed right hand side as a dense array. A 1d array is
+            returned if b was 1d, otherwise a 2d array is returned.
         """
 
         if self.schur_complement is None:
@@ -627,8 +636,10 @@ class Context:
             )
         self.mumps_instance.set_schur_rhs(self.schur_rhs)
 
-        if scipy.sparse.isspmatrix(b):
+        if scipy.sparse.issparse(b):
+            b, is_vector = _coerce_sparse_rhs(b)
             b = b.tocsc()
+            self._schur_x_vector = is_vector
             self.schur_x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=dtype)
             b_dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, dtype)
 
@@ -637,6 +648,7 @@ class Context:
             self.mumps_instance.icntl[20] = 1
 
         else:
+            self._schur_x_vector = False
             b_dtype, b = prepare_for_fortran(overwrite_b, b, np.zeros(1, dtype=dtype))[
                 :2
             ]
@@ -680,6 +692,8 @@ class Context:
         self.mumps_instance.job = 3
         self.call()
 
+        if self._schur_x_vector and self.schur_x.ndim == 2:
+            return self.schur_x[:, 0]
         return self.schur_x
 
     def solve_schur(self, b, overwrite_b=False):
@@ -691,10 +705,11 @@ class Context:
         Parameters
         ----------
 
-        b : dense (NumPy) matrix or vector or sparse (SciPy) matrix
+        b : dense (NumPy) array or sparse (SciPy) array or matrix
             the right hand side to solve. Accepts both dense and sparse input;
-            if the input is sparse 'csc' format is used internally (so passing
-            a 'csc' matrix gives best performance).
+            1d sparse arrays are treated as column vectors. If the input is
+            sparse, `csc` format is used internally (so passing a `csc` sparse
+            array or matrix gives best performance).
         overwrite_b : True or False
             whether the data in b may be overwritten, which can lead to a small
             performance gain. Default is False.
@@ -703,8 +718,8 @@ class Context:
         -------
 
         x : NumPy array
-            the solution to the linear system as a dense matrix (a vector is
-            returned if b was a vector, otherwise a matrix is returned).
+            the solution to the linear system as a dense array. A 1d array is
+            returned if b was 1d, otherwise a 2d array is returned.
 
         Example
         -------
@@ -719,7 +734,7 @@ class Context:
         >>> val = np.array([1, 2, 2, 1, 1, 3, -1, 2, 1, 1, 3, 1], dtype='d')
         >>> b = np.array([15, 12, 3, 5], dtype='d')
         >>> schur_indices = np.array([2, 3])
-        >>> mtx = sp.coo_matrix((val, (row, col)), shape=(4, 4))
+        >>> mtx = sp.coo_array((val, (row, col)), shape=(4, 4))
         >>> ctx = mumps.Context()
         >>> ctx.schur(schur_indices, mtx)
         >>> ctx.solve_schur(b)
@@ -753,9 +768,9 @@ class Context:
 
         Parameters
         ----------
-        a : sparse matrix, optional
-            Input sparse matrix. If `a` is not given, the matrix passed to
-            `set_matrix` is used.
+        a : sparse SciPy array or matrix, optional
+            Input sparse array or matrix. Sparse arrays are preferred. If `a` is not
+            given, the matrix passed to `set_matrix` is used.
         symmetric : bool, optional
             If True, treat `a` as symmetric. Ignored if `a` is not set.
             Default is False.
@@ -843,12 +858,13 @@ class Context:
     ):
         """
         Compute the signature (number of positive minus negative eigenvalues)
-        of a real symmetric sparse matrix using MUMPS.
+        of a real symmetric sparse array or matrix using MUMPS.
 
         Parameters
         ----------
-        a : sparse matrix (optional)
-            input sparse matrix. Must be real symmetric, and non-singular.
+        a : sparse SciPy array or matrix (optional)
+            input sparse array or matrix. Sparse arrays are preferred. Must be real
+            symmetric, and non-singular.
             If `a` is not given, the matrix passed to `set_matrix` is used,
             if it was already factored, the factorization is reused. Does not
             check whether `a` is real symmetric, only the real part of the upper
@@ -914,9 +930,10 @@ def schur_complement(
     """Compute the Schur complement block of matrix a using MUMPS.
 
     Parameters:
-    a : sparse matrix
-        input matrix. Internally, the matrix is converted to `coo` format (so
-        passing this format is best for performance)
+    a : sparse SciPy array or matrix
+        input matrix. Sparse arrays are preferred. Internally, the matrix is
+        converted to `coo` format (so passing this format is best for
+        performance).
     indices : 1d array
         indices (row and column) of the desired Schur complement block.  (The
         Schur complement block is square, so that the indices are both row and
@@ -969,9 +986,9 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
     """Compute the right nullspace using MUMPS.
 
     Parameters:
-    a : scipy sparse matrix
-        input matrix. Internally, the matrix is copied and converted
-        to `coo` format.
+    a : scipy sparse array or matrix
+        input matrix. Sparse arrays are preferred. Internally, the matrix is
+        copied and converted to `coo` format.
     symmetric: bool, default: False
         If 'True', then 'a' must contain the diagonal and upper triangle
         of the (symmetric) matrix for which we want to find the nullspace.
@@ -1029,11 +1046,11 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
 # Some internal helper functions
 def _make_assembled_from_coo(a, overwrite_a):
     """
-    Takes the scipy sparse coo matrix and converts
+    Takes the scipy sparse coo array or matrix and converts
     to the correct fortran arrays.
 
     Parameters:
-    a : scipy sparse coo matrix
+    a : scipy sparse coo array or matrix
         input matrix.
     overwrite_a : bool
         controls the prepare_for_fortran function behaviour
@@ -1067,6 +1084,14 @@ def _make_assembled_from_coo(a, overwrite_a):
     return dtype, row, col, data
 
 
+def _coerce_sparse_rhs(b):
+    if b.ndim == 1:
+        return b.reshape(-1, 1), True
+    if b.ndim != 2:
+        raise ValueError("Right hand side must be a vector or a matrix.")
+    return b, False
+
+
 def _make_sparse_rhs_from_csc(b, dtype):
     dtype, data = prepare_for_fortran(True, b.data, np.zeros(1, dtype=dtype))[:2]
 
@@ -1093,16 +1118,16 @@ def complex_to_real(a, format=None):
 
     Parameters
     ----------
-    a : sparse matrix
-        input sparse matrix.
+    a : sparse array or matrix
+        input sparse array or matrix. Sparse arrays are preferred.
     format : str, optional
-        sparse matrix format of the output. By default the type
-        of the real part of the input matrix is used.
+        sparse format of the output. By default the type of the real part of
+        the input matrix is used.
 
     Returns
     -------
-    a_real : sparse matrix
-        real matrix of double size in the format
+    a_real : sparse array
+        real array of double size in the format
         `a.real 1 + a.imag i sigma_y` where multiplication is
         meant in the tensor product sense.
 
@@ -1125,7 +1150,9 @@ def complex_to_real(a, format=None):
     >>> ctx = mumps.Context()
     >>> ctx.signature(a_real) // 2
     """
+    a = scipy.sparse.coo_array(a)
     a_real = a.real
     a_imag = a.imag
-    a_real = scipy.sparse.bmat([[a_real, a_imag], [-a_imag, a_real]], format)
-    return a_real
+    return scipy.sparse.block_array(
+        [[a_real, a_imag], [-a_imag, a_real]], format=format
+    )

@@ -62,6 +62,26 @@ def test_lu_with_dense(dtype, mat_size):
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_sparse_array_rhs_vector(dtype):
+    rand = _Random()
+    mat_size = 8
+    a = rand.randmat(mat_size, mat_size, dtype)
+    a += (mat_size + 1) * np.eye(mat_size, dtype=dtype)
+    bvec = rand.randvec(mat_size, dtype)
+
+    coords = np.arange(mat_size, dtype=int)
+    b_sparse = sp.coo_array((bvec, (coords,)), shape=(mat_size,))
+    assert b_sparse.ndim == 1
+
+    ctx = Context()
+    ctx.factor(sp.coo_array(a))
+    x = ctx.solve(b_sparse)
+
+    assert x.ndim == 1
+    assert_array_almost_equal(dtype, a @ x, bvec)
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
 def test_sparse_rhs_multiple_columns(dtype):
     rand = _Random()
     mat_size = 6
@@ -127,6 +147,26 @@ def test_schur_sparse_rhs_multiple_columns(dtype):
     x = ctx.solve_schur(b_sparse)
 
     assert_array_almost_equal(dtype, a @ x, b_sparse.toarray())
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+def test_schur_sparse_array_rhs_vector(dtype):
+    rand = _Random()
+    mat_size = 6
+    a = rand.randmat(mat_size, mat_size, dtype)
+    a += (mat_size + 1) * np.eye(mat_size, dtype=dtype)
+    bvec = rand.randvec(mat_size, dtype)
+
+    coords = np.arange(mat_size, dtype=int)
+    b_sparse = sp.coo_array((bvec, (coords,)), shape=(mat_size,))
+    assert b_sparse.ndim == 1
+
+    ctx = Context()
+    ctx.schur(range(2), sp.coo_array(a))
+    x = ctx.solve_schur(b_sparse)
+
+    assert x.ndim == 1
+    assert_array_almost_equal(dtype, a @ x, bvec)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -306,9 +346,12 @@ def test_signature_with_dense(dtype, mat_size):
     sign_ref = np.sum(np.sign(la.eigvalsh(a)))
 
     if dtype in [np.complex64, np.complex128]:
-        a = complex_to_real(sp.csr_matrix(a))
+        a = complex_to_real(sp.csr_array(a))
         sign_ref *= 2
 
     ctx = Context()
-    sign = ctx.signature(sp.csr_matrix(a))
+    if sp.issparse(a):
+        sign = ctx.signature(a)
+    else:
+        sign = ctx.signature(sp.csr_array(a))
     assert sign == sign_ref
