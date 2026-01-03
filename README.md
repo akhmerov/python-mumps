@@ -15,7 +15,7 @@ Next steps include:
 
 ## Installation
 
-`python-mumps` works with Python 3.10 and higher on Linux, Windows and Mac.
+`python-mumps` works with Python 3.12 and higher on Linux, Windows and Mac.
 
 The recommended way to install `python-mumps` is using `mamba`/`conda`.
 

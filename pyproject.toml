@@ -27,8 +27,8 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows"
 ]
-requires-python = ">= 3.11"
-dependencies = [ "numpy>=1.26", "scipy>=1.11.0"]
+requires-python = ">= 3.12"
+dependencies = [ "numpy>=2.0", "scipy>=1.13.0"]
 dynamic = ["version"]
 
 [project.urls]
@@ -48,9 +48,10 @@ line-length = 88
 skip = ["*.lock"]
 ignore-words-list = "groth,coo"
 
-[tool.pixi.project]
-channels = ["conda-forge"]
+[tool.pixi.workspace]
+channels = ["https://prefix.dev/pixi-build-backends", "conda-forge"]
 platforms = ["linux-64"]
+preview = ["pixi-build"]
 
 [tool.pixi.pypi-dependencies]
 python-mumps = { path = ".", editable = true }
@@ -63,9 +64,10 @@ MKL_DYNAMIC = "FALSE"
 MKL_NUM_THREADS = "1"
 
 [tool.pixi.dependencies]
+python = ">=3.12"
 mumps-seq = ">=5.8.1,<6"
-scipy = ">=1.15.2,<2"
-numpy = ">=2.2.6,<3"
+scipy = ">=1.13"
+numpy = ">=2.0"
 setuptools_scm = ">=8.3.1,<9"
 meson-python = ">=0.18.0,<0.19"
 compilers = ">=1.9.0,<2"
@@ -74,6 +76,36 @@ cython = ">=3.1.1,<4"
 pytest = ">=8.3.5,<9"
 git = ">=2.49.0,<3"
 pkgconfig = ">=1.5.5,<2"
+
+[tool.pixi.package]
+name = "python-mumps"
+version = "0.0.4" # TODO: Replace once pixi-build supports dynamic versions.
+readme = "README.md"
+authors = ["Python-MUMPS authors <authors@kwant-project.org>"]
+license = "BSD-2-Clause"
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "==0.4.0" }
+
+[tool.pixi.package.host-dependencies]
+python = ">=3.12"
+cython = ">=3.1.1"
+meson = ">=1.8.0"
+meson-python = ">=0.18.0"
+numpy = ">=2.0"
+mumps-seq = ">=5.8.1,<6"
+setuptools-scm = ">=8"
+pip = "*"
+python-build = "*"
+compilers = ">=1.9.0,<2"
+ninja = ">=1.12.1,<2"
+pkg-config = "*"
+
+[tool.pixi.package.run-dependencies]
+python = ">=3.12"
+numpy = ">=2.0"
+scipy = ">=1.13"
+mumps-seq = ">=5.8.1,<6"
 
 [tool.pixi.feature.publish.dependencies]
 uv = ">=0.4.5"
@@ -86,11 +118,16 @@ git = "*"
 [tool.pixi.feature.develop.dependencies]
 ipykernel = ">=6.29.0"
 
+[tool.pixi.feature.minimal]
+solve-strategy = "lowest-direct"
+
 [tool.pixi.pypi-options]
 no-build-isolation = ["python-mumps"]
 
 [tool.pixi.environments]
 default = { features = ["develop", "publish", "precommit"],  solve-group = "default" }
+minimal = { features = ["minimal"] }
+latest = { features = [] }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"] }
 
