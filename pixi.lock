@@ -534,6 +534,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.64.0-h161d5f1_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libnsl-2.0.1-hb9d3cd8_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libsanitizer-14.3.0-hd08acf3_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libscotch-7.0.10-int32_h8512f2c_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libsqlite-3.50.4-h0c1763c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libssh2-1.11.1-hcf80075_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-15.1.0-h8f9b012_4.conda
@@ -546,7 +547,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/meson-1.8.3-pyhe01879c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/meson-python-0.18.0-pyh70fd9c4_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/metis-5.1.0-hd0bcaf9_1007.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/more-itertools-10.7.0-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/mumps-include-5.8.1-h1795ed4_4.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/mumps-seq-5.8.1-h4374b6a_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nh3-0.3.0-py39hd511f7d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ninja-1.13.1-h171cf75_0.conda
@@ -3132,6 +3136,13 @@ packages:
   purls: []
   size: 5651412
   timestamp: 1766853339211
+- conda: https://conda.anaconda.org/conda-forge/linux-64/mumps-include-5.8.1-h1795ed4_4.conda
+  sha256: 0abe54874dc8b4751e599b7310abbafbe35cd6c49eab80287fcbbefb8d2a2ff1
+  md5: ea5ef10a7cab2db49b594285e135ab96
+  license: CECILL-C
+  purls: []
+  size: 19751
+  timestamp: 1759596375796
 - conda: https://conda.anaconda.org/conda-forge/linux-64/mumps-include-5.8.1-h580308f_4.conda
   sha256: 86d3c0e42c245443cda27fd6ff1480e67466266f9c7afa85f675a68f14d7892e
   md5: b92622589ad4cadd4cd51f28735175a5
@@ -3172,6 +3183,28 @@ packages:
   purls: []
   size: 2738565
   timestamp: 1759596391437
+- conda: https://conda.anaconda.org/conda-forge/linux-64/mumps-seq-5.8.1-h4374b6a_4.conda
+  sha256: 5fb7c097e21948bfe0935e82ded7c8617d305420fe59270f4409f90289193768
+  md5: fe5cc261c431673f2cd35f78a5b43d95
+  depends:
+  - mumps-include ==5.8.1 h1795ed4_4
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  - libgfortran5 >=14.3.0
+  - libgfortran
+  - libgcc >=14
+  - _openmp_mutex >=4.5
+  - libscotch >=7.0.10,<7.0.11.0a0
+  - libscotch * int32_*
+  - libblas >=3.9.0,<4.0a0
+  - metis >=5.1.0,<5.1.1.0a0
+  - liblapack >=3.9.0,<4.0a0
+  constrains:
+  - libopenblas * *openmp*
+  license: CECILL-C
+  purls: []
+  size: 2709352
+  timestamp: 1759596375796
 - conda: https://conda.anaconda.org/conda-forge/linux-64/mumps-seq-5.8.1-h764f1f9_2.conda
   sha256: d1822229d94d737809429df093f8bec55cb421e3e849045a719bb09816e494df
   md5: 9822a3ddb5372fc41e535afc129e0077
@@ -3877,8 +3910,8 @@ packages:
   timestamp: 1765020424843
 - pypi: ./
   name: python-mumps
-  version: 0.0.5.dev18+gdf618bf.d20260104
-  sha256: 8ce4a352f1a18b29c02aa12fc7181ab33c49f074b9381ff120196b9cf019a1d3
+  version: 0.0.5.dev19+g69897c0.d20260104
+  sha256: a9b7d168d255e898728b7cbd49393eb4a4e5861f8979d9f2eb7f0a6179622d6b
   requires_dist:
   - numpy>=1.26
   - scipy>=1.11.0

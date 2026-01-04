@@ -106,7 +106,7 @@ no-build-isolation = ["python-mumps"]
 default = { features = ["seq","develop", "publish", "precommit"]}
 parallel = { features = ["mpi","develop", "publish", "precommit"], solve-group = "parallel" }
 precommit = { features = ["precommit"], no-default-feature = true }
-publish = { features = ["publish"] }
+publish = { features = ["publish", "seq"] }
 
 
 [tool.pixi.feature.precommit.tasks]
