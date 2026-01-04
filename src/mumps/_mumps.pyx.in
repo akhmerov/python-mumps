@@ -105,7 +105,7 @@ cdef class {{p.lower()}}mumps:
         self.params.job = -1
         self.params.sym = sym
         self.params.par = 1
-        if comm:
+        if comm is not None:
             self.params.comm_fortran = comm.py2f()
         else:
             self.params.comm_fortran = -987654  # MPI_COMM_WORLD, according to docs

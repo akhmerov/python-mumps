@@ -48,7 +48,7 @@ line-length = 88
 skip = ["*.lock"]
 ignore-words-list = "groth,coo"
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
@@ -89,21 +89,25 @@ ipykernel = ">=6.29.0"
 [tool.pixi.feature.seq.dependencies]
 mumps-seq = ">=5.8.1,<6"
 
+[tool.pixi.feature.seq.tasks]
+test = { cmd = "python -P -m pytest -v --import-mode=importlib --pyargs mumps", clean-env = true }
+
 [tool.pixi.feature.mpi.dependencies]
 mumps-mpi = ">=5.8.1,<6"
 mpi4py = ">=4.1.0,<5"
+
+[tool.pixi.feature.mpi.tasks]
+test-mpi = { cmd = "mpirun -n 2 python -P -m pytest -v -rs --import-mode=importlib --pyargs mumps -m mpi --with-mpi", clean-env = true }
 
 [tool.pixi.pypi-options]
 no-build-isolation = ["python-mumps"]
 
 [tool.pixi.environments]
-default = { features = ["seq","develop", "publish", "precommit"],  solve-group = "default" }
-parallel = { features = ["mpi","develop", "publish", "precommit"],  solve-group = "default" }
+default = { features = ["seq","develop", "publish", "precommit"]}
+parallel = { features = ["mpi","develop", "publish", "precommit"], solve-group = "parallel" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"] }
 
-[tool.pixi.tasks]
-test = { cmd = "python -P -m pytest -v --import-mode=importlib --pyargs mumps", clean-env = true }
 
 [tool.pixi.feature.precommit.tasks]
 check = "pre-commit run --all-files"

@@ -227,7 +227,7 @@ class Context:
 
     """
 
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, comm=None):
         """Init the Context class
 
         Parameters
@@ -237,15 +237,30 @@ class Context:
             control whether MUMPS prints lots of internal statistics
             and debug information to screen.
         """
-        try:
-            from mpi4py import MPI
-
-            comm = MPI.COMM_WORLD
+        self.comm = None
+        self.myid = 0
+        if comm is not None:
+            try:
+                from mpi4py import MPI
+            except ImportError as exc:
+                raise RuntimeError(
+                    "mpi4py is required when providing an MPI communicator."
+                ) from exc
+            if not isinstance(comm, MPI.Comm):
+                raise TypeError("comm must be an mpi4py.MPI.Comm instance.")
             self.comm = comm
             self.myid = comm.rank
-        except ImportError:
-            self.comm = None
-            self.myid = 0
+        else:
+            try:
+                from mpi4py import MPI
+            except ImportError:
+                pass
+            else:
+                # Use COMM_WORLD when running under MPI so rank-aware behavior works.
+                if MPI.COMM_WORLD.Get_size() > 1:
+                    self.comm = MPI.COMM_WORLD
+                    self.myid = self.comm.rank
+
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
@@ -325,11 +340,11 @@ class Context:
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13
-        self.n = a.shape[0]
-        self.row = row
-        self.col = col
-        self.data = data
         if self.myid == 0:
+            self.n = a.shape[0]
+            self.row = row
+            self.col = col
+            self.data = data
             self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
         self.factored = False
 

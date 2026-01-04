@@ -289,7 +289,9 @@ def test_signature_with_dense(dtype, mat_size):
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.mpi
 def test_mpi_run(dtype):
-    ctx = Context()
+    from mpi4py import MPI
+
+    ctx = Context(comm=MPI.COMM_WORLD)
     S = sp.coo_matrix(
         (
             np.array([1.0, 2.0, 3.0, 4.0]),
@@ -306,3 +308,37 @@ def test_mpi_run(dtype):
         assert np.allclose(sol, np.ones(4, dtype=dtype))
     else:
         assert sol is None
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi
+def test_mpi_subcomm_run(dtype):
+    from mpi4py import MPI
+
+    world = MPI.COMM_WORLD
+    if world.Get_size() < 2:
+        pytest.skip("Subcommunicator test requires at least 2 MPI ranks.")
+
+    color = 0 if world.rank != 0 else MPI.UNDEFINED
+    subcomm = world.Split(color=color, key=world.rank)
+
+    if subcomm != MPI.COMM_NULL:
+        ctx = Context(comm=subcomm)
+        S = sp.coo_matrix(
+            (
+                np.array([1.0, 2.0, 3.0, 4.0]),
+                (np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])),
+            ),
+            dtype=dtype,
+        )
+        b = np.array([1.0, 2.0, 3.0, 4.0], dtype=dtype)
+        ctx.set_matrix(S)
+        ctx.analyze()
+        ctx.factor()
+        sol = ctx.solve(b)
+        if ctx.myid == 0:
+            assert np.allclose(sol, np.ones(4, dtype=dtype))
+        else:
+            assert sol is None
+
+    world.Barrier()
