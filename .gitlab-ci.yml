@@ -19,6 +19,7 @@ pre-commit:
 test:
   script:
     - pixi run test
+    - pixi run test-mpi
   cache:
     key: "$CI_JOB_NAME"
     paths:
