@@ -49,16 +49,16 @@ def test_lu_with_dense(dtype, mat_size):
 
     xvec = ctx.solve(bvec)
     xmat = ctx.solve(bmat)
-
-    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
-    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
+    if ctx.myid == 0:
+        assert_array_almost_equal(dtype, np.dot(a, xvec), bvec)
+        assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
     # now "sparse" right hand side
     xvec = ctx.solve(sp.csc_matrix(bvec.reshape(mat_size, 1)))
     xmat = ctx.solve(sp.csc_matrix(bmat))
-
-    assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
-    assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
+    if ctx.myid == 0:
+        assert_array_almost_equal(dtype, np.dot(a, xvec), bvec.reshape(mat_size, 1))
+        assert_array_almost_equal(dtype, np.dot(a, xmat), bmat)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -102,6 +102,7 @@ def test_sparse_rhs_multiple_columns(dtype):
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [5, 10], ids=str)
+@pytest.mark.mpi_skip
 def test_schur_complement_with_dense(dtype, mat_size):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -112,6 +113,7 @@ def test_schur_complement_with_dense(dtype, mat_size):
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
 @pytest.mark.parametrize("mat_size", [5, 10], ids=str)
 @pytest.mark.parametrize("symmetric_matrix", [True, False], ids=str)
+@pytest.mark.mpi_skip
 def test_schur_complement_solution(dtype, mat_size, symmetric_matrix):
     rand = _Random()
     a = rand.randmat(mat_size, mat_size, dtype)
@@ -287,7 +289,9 @@ def test_one_by_one(dtype):
     """
     ctx = Context()
     ctx.factor(sp.eye(1, dtype=dtype))
-    assert_almost_equal(dtype, ctx.solve(np.array([1], dtype=dtype)), 1)
+    sol = ctx.solve(np.array([1], dtype=dtype))
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sol, 1)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -297,7 +301,9 @@ def test_zero_size_rhs(dtype):
     ctx = Context()
     ctx.factor(a)
     rhs = np.zeros((10, 0), dtype=dtype)
-    assert_almost_equal(dtype, ctx.solve(rhs), rhs)
+    sol = ctx.solve(rhs)
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sol, rhs)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -312,7 +318,9 @@ def test_symmetric_matrix(dtype):
     ctx.set_matrix(a, symmetric=True)
     ctx.factor()
     rhs = np.random.randn(n, 1).astype(dtype)
-    assert_almost_equal(dtype, ctx.solve(rhs), la.solve(a, rhs))
+    sol = ctx.solve(rhs)
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sol, la.solve(a, rhs))
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -324,16 +332,18 @@ def test_slogdet_with_dense(dtype, mat_size):
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(a))
     # relative comparison of large numbers
     det = la.det(a)
-    assert_almost_equal(dtype, sign, det / np.abs(det))
-    assert_almost_equal(dtype, logabsdet, np.log(np.abs(det)))
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sign, det / np.abs(det))
+        assert_almost_equal(dtype, logabsdet, np.log(np.abs(det)))
 
     # test singular matrix
     b = np.zeros((mat_size + 1, mat_size + 1), dtype)
     b[:mat_size][:, :mat_size] = a
     ctx = Context()
     sign, logabsdet = ctx.slogdet(sp.csr_matrix(b))
-    assert_almost_equal(dtype, sign, 0)
-    assert_almost_equal(dtype, logabsdet, -np.inf)
+    if ctx.myid == 0:
+        assert_almost_equal(dtype, sign, 0)
+        assert_almost_equal(dtype, logabsdet, -np.inf)
 
 
 @pytest.mark.parametrize("dtype", dtypes, ids=str)
@@ -354,4 +364,63 @@ def test_signature_with_dense(dtype, mat_size):
         sign = ctx.signature(a)
     else:
         sign = ctx.signature(sp.csr_array(a))
-    assert sign == sign_ref
+    if ctx.myid == 0:
+        assert sign == sign_ref
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi
+def test_mpi_run(dtype):
+    from mpi4py import MPI
+
+    ctx = Context(comm=MPI.COMM_WORLD)
+    S = sp.coo_array(
+        (
+            np.array([1.0, 2.0, 3.0, 4.0]),
+            (np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])),
+        ),
+        dtype=dtype,
+    )
+    b = np.array([1.0, 2.0, 3.0, 4.0], dtype=dtype)
+    ctx.set_matrix(S)
+    ctx.analyze()
+    ctx.factor()
+    sol = ctx.solve(b)
+    if ctx.myid == 0:
+        assert np.allclose(sol, np.ones(4, dtype=dtype))
+    else:
+        assert sol is None
+
+
+@pytest.mark.parametrize("dtype", dtypes, ids=str)
+@pytest.mark.mpi
+def test_mpi_subcomm_run(dtype):
+    from mpi4py import MPI
+
+    world = MPI.COMM_WORLD
+    if world.Get_size() < 2:
+        pytest.skip("Subcommunicator test requires at least 2 MPI ranks.")
+
+    color = 0 if world.rank != 0 else MPI.UNDEFINED
+    subcomm = world.Split(color=color, key=world.rank)
+
+    if subcomm != MPI.COMM_NULL:
+        ctx = Context(comm=subcomm)
+        S = sp.coo_array(
+            (
+                np.array([1.0, 2.0, 3.0, 4.0]),
+                (np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])),
+            ),
+            dtype=dtype,
+        )
+        b = np.array([1.0, 2.0, 3.0, 4.0], dtype=dtype)
+        ctx.set_matrix(S)
+        ctx.analyze()
+        ctx.factor()
+        sol = ctx.solve(b)
+        if ctx.myid == 0:
+            assert np.allclose(sol, np.ones(4, dtype=dtype))
+        else:
+            assert sol is None
+
+    world.Barrier()

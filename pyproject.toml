@@ -65,7 +65,6 @@ MKL_NUM_THREADS = "1"
 
 [tool.pixi.dependencies]
 python = ">=3.12"
-mumps-seq = ">=5.8.1,<6"
 scipy = ">=1.13"
 numpy = ">=2.0"
 setuptools_scm = ">=8.3.1,<9"
@@ -74,6 +73,7 @@ compilers = ">=1.9.0,<2"
 ninja = ">=1.12.1,<2"
 cython = ">=3.1.1,<4"
 pytest = ">=8.3.5,<9"
+pytest-mpi = ">=0.6,<0.7"
 git = ">=2.49.0,<3"
 pkgconfig = ">=1.5.5,<2"
 
@@ -121,18 +121,32 @@ ipykernel = ">=6.29.0"
 [tool.pixi.feature.minimal]
 solve-strategy = "lowest-direct"
 
+[tool.pixi.feature.seq.dependencies]
+mumps-seq = ">=5.8.1,<6"
+
+[tool.pixi.feature.seq.tasks]
+test = { cmd = "python -P -m pytest -v --import-mode=importlib --pyargs mumps", clean-env = true }
+
+[tool.pixi.feature.mpi.dependencies]
+# meson-python keys build directories by python version. To ensure that the builds
+# for sequential and MPI-enabled MUMPS do not conflict, we fix the python version here.
+python = "3.13.*"
+mumps-mpi = ">=5.8.1,<6"
+mpi4py = ">=4.1.0,<5"
+
+[tool.pixi.feature.mpi.tasks]
+test-mpi = { cmd = "mpirun -n 2 python -P -m pytest -v -rs --import-mode=importlib --pyargs mumps -m mpi --with-mpi", clean-env = true }
+
 [tool.pixi.pypi-options]
 no-build-isolation = ["python-mumps"]
 
 [tool.pixi.environments]
-default = { features = ["develop", "publish", "precommit"],  solve-group = "default" }
-minimal = { features = ["minimal"] }
-latest = { features = [] }
+default = { features = ["seq", "develop", "publish", "precommit"], solve-group = "default" }
+parallel = { features = ["mpi", "develop", "publish", "precommit"], solve-group = "parallel" }
+minimal = { features = ["minimal", "seq"], solve-group = "minimal" }
 precommit = { features = ["precommit"], no-default-feature = true }
-publish = { features = ["publish"] }
+publish = { features = ["publish", "seq"] }
 
-[tool.pixi.tasks]
-test = { cmd = "python -P -m pytest -v --import-mode=importlib --pyargs mumps", clean-env = true }
 
 [tool.pixi.feature.precommit.tasks]
 check = "pre-commit run --all-files"

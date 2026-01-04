@@ -227,7 +227,7 @@ class Context:
 
     """
 
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, comm=None):
         """Init the Context class
 
         Parameters
@@ -237,6 +237,30 @@ class Context:
             control whether MUMPS prints lots of internal statistics
             and debug information to screen.
         """
+        self.comm = None
+        self.myid = 0
+        if comm is not None:
+            try:
+                from mpi4py import MPI
+            except ImportError as exc:
+                raise RuntimeError(
+                    "mpi4py is required when providing an MPI communicator."
+                ) from exc
+            if not isinstance(comm, MPI.Comm):
+                raise TypeError("comm must be an mpi4py.MPI.Comm instance.")
+            self.comm = comm
+            self.myid = comm.rank
+        else:
+            try:
+                from mpi4py import MPI
+            except ImportError:
+                pass
+            else:
+                # Use COMM_WORLD when running under MPI so rank-aware behavior works.
+                if MPI.COMM_WORLD.Get_size() > 1:
+                    self.comm = MPI.COMM_WORLD
+                    self.myid = self.comm.rank
+
         self.mumps_instance = None
         self.dtype = None
         self.verbose = verbose
@@ -312,15 +336,18 @@ class Context:
         dtype, row, col, data = _make_assembled_from_coo(a, overwrite_a)
         sym = 2 if symmetric else 0
         if self.dtype != dtype:
-            self.mumps_instance = getattr(_mumps, dtype + "mumps")(self.verbose, sym)
+            self.mumps_instance = getattr(_mumps, dtype + "mumps")(
+                self.verbose, sym, self.comm
+            )
             self.dtype = dtype
         # Note: We store the matrix data to avoid garbage collection.
         # See https://gitlab.kwant-project.org/kwant/python-mumps/-/issues/13
-        self.n = a.shape[0]
-        self.row = row
-        self.col = col
-        self.data = data
-        self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
+        if self.myid == 0:
+            self.n = a.shape[0]
+            self.row = row
+            self.col = col
+            self.data = data
+            self.mumps_instance.set_assembled_matrix(a.shape[0], row, col, data)
         self.factored = False
 
     def analyze(self, a=None, ordering="auto", overwrite_a=False):
@@ -438,52 +465,55 @@ class Context:
         self.factor_stats = FactorizationStatistics(self.mumps_instance, t)
 
     def _solve_sparse(self, b):
-        b, is_vector = _coerce_sparse_rhs(b)
-        b = b.tocsc()
-        x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
+        if self.myid == 0:
+            b, is_vector = _coerce_sparse_rhs(b)
+            b = b.tocsc()
+            x = np.empty((b.shape[0], b.shape[1]), order="F", dtype=self.data.dtype)
 
-        dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(b, self.data.dtype)
-
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
-
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
+            dtype, col_ptr, row_ind, data = _make_sparse_rhs_from_csc(
+                b, self.data.dtype
             )
 
-        self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
-        self.mumps_instance.set_dense_rhs(x)
-        self.mumps_instance.job = 3
-        self.mumps_instance.icntl[20] = 1
-        self.call()
+            if b.shape[0] != self.n:
+                raise ValueError("Right hand side has wrong size")
 
-        if is_vector:
-            return x[:, 0]
-        return x
+            if self.dtype != dtype:
+                raise ValueError(
+                    "Data type of right hand side is not "
+                    "compatible with the dtype of the "
+                    "linear system"
+                )
+            self.mumps_instance.set_sparse_rhs(col_ptr, row_ind, data)
+            self.mumps_instance.set_dense_rhs(x)
+            self.mumps_instance.icntl[20] = 1
+        self.mumps_instance.job = 3
+        self.call()
+        if self.myid == 0:
+            if is_vector:
+                return x[:, 0]
+            return x
 
     def _solve_dense(self, b, overwrite_b=False):
-        dtype, b = prepare_for_fortran(
-            overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
-        )[:2]
+        if self.myid == 0:
+            dtype, b = prepare_for_fortran(
+                overwrite_b, b, np.zeros(1, dtype=self.data.dtype)
+            )[:2]
 
-        if b.shape[0] != self.n:
-            raise ValueError("Right hand side has wrong size")
+            if b.shape[0] != self.n:
+                raise ValueError("Right hand side has wrong size")
 
-        if self.dtype != dtype:
-            raise ValueError(
-                "Data type of right hand side is not "
-                "compatible with the dtype of the "
-                "linear system"
-            )
+            if self.dtype != dtype:
+                raise ValueError(
+                    "Data type of right hand side is not "
+                    "compatible with the dtype of the "
+                    "linear system"
+                )
 
-        self.mumps_instance.set_dense_rhs(b)
+            self.mumps_instance.set_dense_rhs(b)
         self.mumps_instance.job = 3
         self.call()
-
-        return b
+        if self.myid == 0:
+            return b
 
     def solve(self, b, overwrite_b=False):
         """Solve a linear system after the LU factorization has previously
@@ -518,9 +548,13 @@ class Context:
             raise RuntimeError("Factorization must be done before solving!")
 
         if scipy.sparse.issparse(b):
-            return self._solve_sparse(b)
+            sol = self._solve_sparse(b)
         else:
-            return self._solve_dense(b, overwrite_b)
+            sol = self._solve_dense(b, overwrite_b)
+
+        # Return values only if we are on the main proc
+        if self.myid == 0:
+            return sol
 
     def schur(
         self,
@@ -1037,6 +1071,9 @@ def nullspace(a, symmetric=False, pivot_threshold=0.0):
         ctx.mumps_instance.icntl[25] = -1
         ctx.call()
 
+        # If MPI mode broadcast nullspace
+        if ctx.comm is not None:
+            ctx.comm.Bcast(nullspace, root=0)
     # Orthonormalize
     nullspace, _ = la.qr(nullspace, mode="economic")
 
