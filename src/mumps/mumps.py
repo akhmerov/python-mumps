@@ -317,7 +317,7 @@ class Context:
             For details about other modes see MUMPS documentation
 
         precision : float, optional
-            Error tolerated on the solution of the system, increasing the precision
+            Error tolerated on the solution of the system, increasing the precision reduces computation load and RAM usage at the cost of precision. By default 0. (maximum precision) is set
         """
         if self.mumps_instance:
             if self.myid == 0:
