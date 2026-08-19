@@ -1,0 +1,62 @@
+cff-version: 1.2.0
+message: >-
+  If you use Python-MUMPS, please cite the Python-MUMPS software and both MUMPS
+  papers listed under references.
+type: software
+title: Python-MUMPS
+abstract: Bindings and Python interface for the MUMPS sparse solver.
+authors:
+  - given-names: Anton
+    family-names: Akhmerov
+  - given-names: Christoph
+    family-names: Groth
+  - given-names: Kelvin
+    family-names: Loh
+  - given-names: Bas
+    family-names: Nijholt
+  - given-names: Joseph
+    family-names: Weston
+  - given-names: Michael
+    family-names: Wimmer
+  - given-names: Kostas
+    family-names: Vilkelis
+url: https://pypi.org/project/python-mumps/
+repository-code: https://gitlab.kwant-project.org/kwant/python-mumps
+license: BSD-2-Clause
+references:
+  - type: article
+    title: A Fully Asynchronous Multifrontal Solver Using Distributed Dynamic Scheduling
+    authors:
+      - given-names: Patrick R.
+        family-names: Amestoy
+      - given-names: Iain S.
+        family-names: Duff
+      - given-names: Jean-Yves
+        family-names: "L'Excellent"
+      - given-names: Jacko
+        family-names: Koster
+    journal: SIAM Journal on Matrix Analysis and Applications
+    volume: 23
+    issue: 1
+    start: 15
+    end: 41
+    year: 2001
+    doi: 10.1137/S0895479899358194
+  - type: article
+    title: Performance and Scalability of the Block Low-Rank Multifrontal Factorization on Multicore Architectures
+    authors:
+      - given-names: Patrick R.
+        family-names: Amestoy
+      - given-names: Alfredo
+        family-names: Buttari
+      - given-names: Jean-Yves
+        family-names: "L'Excellent"
+      - given-names: Théo
+        family-names: Mary
+    journal: ACM Transactions on Mathematical Software
+    volume: 45
+    issue: 1
+    start: 1
+    end: 26
+    year: 2019
+    doi: 10.1145/3242094
